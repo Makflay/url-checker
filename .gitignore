@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+out/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime files
+*.pid
+*.pid.lock
+*.seed
+
+# Temporary files and caches
+tmp/
+temp/
+.cache/
+.eslintcache
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# TypeScript incremental build information
+*.tsbuildinfo
+
+# IDE and editor files
+.idea/
+.vscode/
+*.code-workspace
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows system files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Vite local files
+*.local
