@@ -1,0 +1,19 @@
+.jobs-placeholder {
+  height: 100%;
+}
+
+.jobs-placeholder--create {
+  min-height: 160px;
+}
+
+.jobs-placeholder--list,
+.jobs-placeholder--details {
+  min-height: 360px;
+}
+
+@media (max-width: 900px) {
+  .jobs-placeholder--list,
+  .jobs-placeholder--details {
+    min-height: 240px;
+  }
+}

@@ -1,0 +1,32 @@
+.section {
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+  background-color: #ffffff;
+  border: 1px solid #dfe4ec;
+  border-radius: 12px;
+}
+
+.section__header {
+  display: grid;
+  gap: 8px;
+}
+
+.section__title {
+  margin: 0;
+  color: #172033;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.section__description {
+  max-width: 64ch;
+  margin: 0;
+  color: #667085;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.section__content {
+  margin-top: 24px;
+}
