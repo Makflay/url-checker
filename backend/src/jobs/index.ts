@@ -1,5 +1,6 @@
 export * from './constants';
 export * from './dto';
+export * from './http';
 
 export * from './enums/job-status.enum';
 export * from './enums/url-check-status.enum';
