@@ -1,3 +1,7 @@
+export { clearActiveJob, jobsReducer, setActiveJobId } from "./jobs.slice";
+
+export { initialJobsState } from "./jobs.state";
+
 export type {
   CreateJobRequest,
   CreateJobResponse,
@@ -8,3 +12,9 @@ export type {
   JobUrlResult,
   UrlCheckStatus,
 } from "./job.types";
+
+export type {
+  JobsErrorsState,
+  JobsLoadingState,
+  JobsState,
+} from "./jobs.state";

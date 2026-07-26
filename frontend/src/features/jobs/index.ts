@@ -8,6 +8,8 @@ export {
   JobsListPlaceholder,
 } from "./components";
 
+export { clearActiveJob, jobsReducer, setActiveJobId } from "./model";
+
 export type {
   CreateJobRequest,
   CreateJobResponse,
