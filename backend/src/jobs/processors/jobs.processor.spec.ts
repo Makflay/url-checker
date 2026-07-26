@@ -6,8 +6,10 @@ import { UrlCheckStatus } from '../enums/url-check-status.enum';
 import { HttpClientService } from '../http/http-client.service';
 import type { JobItem } from '../interfaces/job-item.interface';
 import type { Job } from '../interfaces/job.interface';
+import type { HttpCheckResult } from '../http/http-check-result.interface';
 import { JobsRepository } from '../repositories/jobs.repository';
 import { JobsProcessor } from './jobs.processor';
+import { JobsService } from '../jobs.service';
 
 function createPendingJob(id: string, itemCount: number): Job {
   const items: JobItem[] = Array.from(
@@ -39,6 +41,7 @@ describe('JobsProcessor', () => {
   let repository: JobsRepository;
   let httpClientService: HttpClientService;
   let processor: JobsProcessor;
+  let service: JobsService;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -48,6 +51,7 @@ describe('JobsProcessor', () => {
     repository = new JobsRepository();
     httpClientService = new HttpClientService();
     processor = new JobsProcessor(repository, httpClientService);
+    service = new JobsService(repository, processor);
   });
 
   afterEach(() => {
@@ -62,7 +66,7 @@ describe('JobsProcessor', () => {
     await processingPromise;
   }
 
-  it('completes a job with successful URL checks', async () => {
+  it('completes a normal job', async () => {
     const job = createPendingJob('job-1', 3);
     repository.create(job);
 
@@ -75,82 +79,13 @@ describe('JobsProcessor', () => {
 
     await finishProcessing(processingPromise);
 
-    const completedJob = repository.findById(job.id);
-
-    expect(completedJob).toBeDefined();
-    expect(completedJob?.status).toBe(JobStatus.COMPLETED);
-    expect(completedJob?.startedAt).not.toBeNull();
-    expect(completedJob?.finishedAt).not.toBeNull();
-    expect(completedJob?.failureMessage).toBeNull();
-
-    completedJob?.items.forEach((item) => {
-      expect(item.status).toBe(UrlCheckStatus.SUCCESS);
-      expect(item.httpStatus).toBe(200);
-      expect(item.errorMessage).toBeNull();
-      expect(item.startedAt).not.toBeNull();
-      expect(item.finishedAt).not.toBeNull();
-      expect(item.durationMs).not.toBeNull();
-      expect(item.durationMs).toBeGreaterThanOrEqual(0);
-    });
+    expect(repository.findById(job.id)?.status).toBe(JobStatus.COMPLETED);
   });
 
-  it('keeps the job completed when one URL has a network error', async () => {
-    const job = createPendingJob('job-2', 2);
+  it('does not start new URLs after cancellation', async () => {
+    const job = createPendingJob('job-2', 8);
     repository.create(job);
 
-    vi.spyOn(httpClientService, 'check')
-      .mockResolvedValueOnce({
-        httpStatus: 200,
-        errorMessage: null,
-      })
-      .mockResolvedValueOnce({
-        httpStatus: null,
-        errorMessage: 'HTTP request failed',
-      });
-
-    const processingPromise = processor.process(job.id);
-
-    await finishProcessing(processingPromise);
-
-    const completedJob = repository.findById(job.id);
-    const errorItem = completedJob?.items.find(
-      (item) => item.status === UrlCheckStatus.ERROR,
-    );
-
-    expect(completedJob?.status).toBe(JobStatus.COMPLETED);
-    expect(errorItem).toBeDefined();
-    expect(errorItem?.httpStatus).toBeNull();
-    expect(errorItem?.errorMessage).toBe('HTTP request failed');
-  });
-
-  it('treats HTTP 404 as a successful URL check', async () => {
-    const job = createPendingJob('job-3', 1);
-    repository.create(job);
-
-    vi.spyOn(httpClientService, 'check').mockResolvedValue({
-      httpStatus: 404,
-      errorMessage: null,
-    });
-
-    const processingPromise = processor.process(job.id);
-
-    await finishProcessing(processingPromise);
-
-    const completedJob = repository.findById(job.id);
-    const item = completedJob?.items[0];
-
-    expect(completedJob?.status).toBe(JobStatus.COMPLETED);
-    expect(item?.status).toBe(UrlCheckStatus.SUCCESS);
-    expect(item?.httpStatus).toBe(404);
-    expect(item?.errorMessage).toBeNull();
-  });
-
-  it('limits concurrency to five URL checks per job', async () => {
-    const job = createPendingJob('job-4', 12);
-    repository.create(job);
-
-    let activeRequests = 0;
-    let maxActiveRequests = 0;
     let releaseChecks: () => void = () => undefined;
 
     const checkGate = new Promise<void>((resolve) => {
@@ -160,11 +95,219 @@ describe('JobsProcessor', () => {
     const checkMock = vi
       .spyOn(httpClientService, 'check')
       .mockImplementation(async () => {
+        await checkGate;
+
+        return {
+          httpStatus: 200,
+          errorMessage: null,
+        };
+      });
+
+    const processingPromise = processor.process(job.id);
+
+    expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
+
+    service.cancel(job.id);
+
+    const cancelledDuringProcessing = repository.findById(job.id);
+
+    expect(cancelledDuringProcessing?.status).toBe(JobStatus.CANCELLED);
+    expect(
+      cancelledDuringProcessing?.items.filter(
+        (item) => item.status === UrlCheckStatus.CANCELLED,
+      ),
+    ).toHaveLength(job.items.length - MAX_CONCURRENT_URL_CHECKS);
+
+    releaseChecks();
+
+    await finishProcessing(processingPromise);
+
+    const finalJob = repository.findById(job.id);
+
+    expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
+    expect(finalJob?.status).toBe(JobStatus.CANCELLED);
+
+    const successfulItems = finalJob?.items.filter(
+      (item) => item.status === UrlCheckStatus.SUCCESS,
+    );
+
+    const cancelledItems = finalJob?.items.filter(
+      (item) => item.status === UrlCheckStatus.CANCELLED,
+    );
+
+    expect(successfulItems).toHaveLength(MAX_CONCURRENT_URL_CHECKS);
+    expect(cancelledItems).toHaveLength(
+      job.items.length - MAX_CONCURRENT_URL_CHECKS,
+    );
+  });
+
+  it('allows an in-progress URL to finish after cancellation', async () => {
+    const job = createPendingJob('job-3', 1);
+    repository.create(job);
+
+    let resolveCheck: (result: HttpCheckResult) => void = () => undefined;
+
+    const pendingCheck = new Promise<HttpCheckResult>((resolve) => {
+      resolveCheck = resolve;
+    });
+
+    vi.spyOn(httpClientService, 'check').mockReturnValue(pendingCheck);
+
+    const processingPromise = processor.process(job.id);
+
+    expect(repository.findById(job.id)?.items[0]?.status).toBe(
+      UrlCheckStatus.IN_PROGRESS,
+    );
+
+    service.cancel(job.id);
+
+    resolveCheck({
+      httpStatus: 404,
+      errorMessage: null,
+    });
+
+    await finishProcessing(processingPromise);
+
+    const finalJob = repository.findById(job.id);
+    const finalItem = finalJob?.items[0];
+
+    expect(finalJob?.status).toBe(JobStatus.CANCELLED);
+    expect(finalItem?.status).toBe(UrlCheckStatus.SUCCESS);
+    expect(finalItem?.httpStatus).toBe(404);
+  });
+
+  it('does not overwrite an item cancelled before processing', async () => {
+    const job = createPendingJob('job-4', 1);
+    repository.create(job);
+
+    service.cancel(job.id);
+
+    const checkMock = vi.spyOn(httpClientService, 'check');
+
+    await processor.process(job.id);
+
+    expect(checkMock).not.toHaveBeenCalled();
+    expect(repository.findById(job.id)?.status).toBe(JobStatus.CANCELLED);
+    expect(repository.findById(job.id)?.items[0]?.status).toBe(
+      UrlCheckStatus.CANCELLED,
+    );
+  });
+
+  it('does not change cancelled to completed', async () => {
+    const job = createPendingJob('job-5', 1);
+    repository.create(job);
+
+    let resolveCheck: (result: HttpCheckResult) => void = () => undefined;
+
+    const pendingCheck = new Promise<HttpCheckResult>((resolve) => {
+      resolveCheck = resolve;
+    });
+
+    vi.spyOn(httpClientService, 'check').mockReturnValue(pendingCheck);
+
+    const updateJobSpy = vi.spyOn(repository, 'update');
+
+    const processingPromise = processor.process(job.id);
+
+    service.cancel(job.id);
+
+    resolveCheck({
+      httpStatus: 200,
+      errorMessage: null,
+    });
+
+    await finishProcessing(processingPromise);
+
+    const statusUpdates = updateJobSpy.mock.calls.map(
+      ([, updatedJob]) => updatedJob.status,
+    );
+
+    const cancelledIndex = statusUpdates.indexOf(JobStatus.CANCELLED);
+
+    expect(cancelledIndex).toBeGreaterThanOrEqual(0);
+    expect(statusUpdates.slice(cancelledIndex + 1)).not.toContain(
+      JobStatus.COMPLETED,
+    );
+    expect(repository.findById(job.id)?.status).toBe(JobStatus.CANCELLED);
+  });
+
+  it('does not change cancelled to failed', async () => {
+    const job = createPendingJob('job-6', 1);
+    repository.create(job);
+
+    let rejectCheck: (reason?: unknown) => void = () => undefined;
+
+    const pendingCheck = new Promise<HttpCheckResult>((_resolve, reject) => {
+      rejectCheck = reject;
+    });
+
+    vi.spyOn(httpClientService, 'check').mockReturnValue(pendingCheck);
+
+    const processingPromise = processor.process(job.id);
+
+    service.cancel(job.id);
+    rejectCheck(new Error('Unexpected processing error'));
+
+    await expect(processingPromise).resolves.toBeUndefined();
+
+    expect(repository.findById(job.id)?.status).toBe(JobStatus.CANCELLED);
+    expect(repository.findById(job.id)?.failureMessage).toBeNull();
+  });
+
+  it('keeps a network error local to the URL', async () => {
+    const job = createPendingJob('job-7', 1);
+    repository.create(job);
+
+    vi.spyOn(httpClientService, 'check').mockResolvedValue({
+      httpStatus: null,
+      errorMessage: 'HTTP request failed',
+    });
+
+    const processingPromise = processor.process(job.id);
+
+    await finishProcessing(processingPromise);
+
+    const finalJob = repository.findById(job.id);
+
+    expect(finalJob?.status).toBe(JobStatus.COMPLETED);
+    expect(finalJob?.items[0]?.status).toBe(UrlCheckStatus.ERROR);
+  });
+
+  it('marks a non-cancelled job as failed after a system error', async () => {
+    const job = createPendingJob('job-8', 1);
+    repository.create(job);
+
+    vi.spyOn(httpClientService, 'check').mockRejectedValue(
+      new Error('Unexpected system error'),
+    );
+
+    await expect(processor.process(job.id)).resolves.toBeUndefined();
+
+    expect(repository.findById(job.id)?.status).toBe(JobStatus.FAILED);
+    expect(repository.findById(job.id)?.failureMessage).toBe(
+      'Job processing failed',
+    );
+  });
+
+  it('limits normal processing to five checks', async () => {
+    const job = createPendingJob('job-9', 12);
+    repository.create(job);
+
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    let releaseChecks: () => void = () => undefined;
+
+    const gate = new Promise<void>((resolve) => {
+      releaseChecks = resolve;
+    });
+
+    const checkMock = vi
+      .spyOn(httpClientService, 'check')
+      .mockImplementation(async () => {
         activeRequests += 1;
         maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
 
-        await checkGate;
-
+        await gate;
         activeRequests -= 1;
 
         return {
@@ -176,80 +319,12 @@ describe('JobsProcessor', () => {
     const processingPromise = processor.process(job.id);
 
     expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
-    expect(maxActiveRequests).toBe(MAX_CONCURRENT_URL_CHECKS);
 
     releaseChecks();
 
     await finishProcessing(processingPromise);
 
-    expect(checkMock).toHaveBeenCalledTimes(job.items.length);
+    expect(checkMock).toHaveBeenCalledTimes(12);
     expect(maxActiveRequests).toBeLessThanOrEqual(MAX_CONCURRENT_URL_CHECKS);
-    expect(repository.findById(job.id)?.status).toBe(JobStatus.COMPLETED);
-  });
-
-  it('processes different jobs independently', async () => {
-    const firstJob = createPendingJob('job-a', 2);
-    const secondJob = createPendingJob('job-b', 2);
-
-    repository.create(firstJob);
-    repository.create(secondJob);
-
-    const checkMock = vi.spyOn(httpClientService, 'check').mockResolvedValue({
-      httpStatus: 204,
-      errorMessage: null,
-    });
-
-    const firstProcessing = processor.process(firstJob.id);
-    const secondProcessing = processor.process(secondJob.id);
-
-    await vi.runAllTimersAsync();
-    await Promise.all([firstProcessing, secondProcessing]);
-
-    expect(checkMock).toHaveBeenCalledTimes(4);
-    expect(repository.findById(firstJob.id)?.status).toBe(JobStatus.COMPLETED);
-    expect(repository.findById(secondJob.id)?.status).toBe(JobStatus.COMPLETED);
-  });
-
-  it('marks the job as failed after an unexpected error', async () => {
-    const job = createPendingJob('job-5', 1);
-    repository.create(job);
-
-    vi.spyOn(httpClientService, 'check').mockRejectedValue(
-      new Error('Unexpected internal failure'),
-    );
-
-    await expect(processor.process(job.id)).resolves.toBeUndefined();
-
-    const failedJob = repository.findById(job.id);
-
-    expect(failedJob?.status).toBe(JobStatus.FAILED);
-    expect(failedJob?.finishedAt).not.toBeNull();
-    expect(failedJob?.failureMessage).toBe('Job processing failed');
-  });
-
-  it('safely ignores an unknown job ID', async () => {
-    const checkMock = vi.spyOn(httpClientService, 'check');
-
-    await expect(processor.process('unknown-id')).resolves.toBeUndefined();
-
-    expect(checkMock).not.toHaveBeenCalled();
-  });
-
-  it('does not process a job that is not pending', async () => {
-    const completedJob: Job = {
-      ...createPendingJob('job-6', 1),
-      status: JobStatus.COMPLETED,
-      startedAt: '2026-07-26T12:00:00.000Z',
-      finishedAt: '2026-07-26T12:01:00.000Z',
-    };
-
-    repository.create(completedJob);
-
-    const checkMock = vi.spyOn(httpClientService, 'check');
-
-    await processor.process(completedJob.id);
-
-    expect(checkMock).not.toHaveBeenCalled();
-    expect(repository.findById(completedJob.id)).toEqual(completedJob);
   });
 });

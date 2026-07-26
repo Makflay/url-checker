@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import type { CreateJobDto } from './dto/create-job.dto';
@@ -63,6 +67,58 @@ export class JobsService {
     }
 
     return this.toDetails(job);
+  }
+
+  cancel(id: string): void {
+    const job = this.getJobOrThrow(id);
+
+    if (job.status === JobStatus.CANCELLED) {
+      return;
+    }
+
+    if (job.status === JobStatus.COMPLETED || job.status === JobStatus.FAILED) {
+      throw new ConflictException(
+        `Job with id ${id} cannot be cancelled from status ${job.status}`,
+      );
+    }
+
+    const cancelledAt = new Date().toISOString();
+
+    const items: JobItem[] = job.items.map((item): JobItem => {
+      if (item.status !== UrlCheckStatus.PENDING) {
+        return item;
+      }
+
+      return {
+        ...item,
+        status: UrlCheckStatus.CANCELLED,
+        httpStatus: null,
+        errorMessage: null,
+        startedAt: null,
+        finishedAt: cancelledAt,
+        durationMs: 0,
+      };
+    });
+
+    const cancelledJob: Job = {
+      ...job,
+      status: JobStatus.CANCELLED,
+      finishedAt: cancelledAt,
+      failureMessage: null,
+      items,
+    };
+
+    this.jobsRepository.update(id, cancelledJob);
+  }
+
+  private getJobOrThrow(id: string): Job {
+    const job = this.jobsRepository.findById(id);
+
+    if (!job) {
+      throw new NotFoundException(`Job with id ${id} was not found`);
+    }
+
+    return job;
   }
 
   private calculateStatistics(job: Job): JobStatistics {

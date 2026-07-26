@@ -22,6 +22,7 @@ describe('JobsController', () => {
   let createJobMock: MockedFunction<JobsService['create']>;
   let findAllJobsMock: MockedFunction<JobsService['findAll']>;
   let findJobByIdMock: MockedFunction<JobsService['findById']>;
+  let cancelJobMock: MockedFunction<JobsService['cancel']>;
 
   const createResponse: CreateJobResponse = {
     jobId: 'job-1',
@@ -64,11 +65,15 @@ describe('JobsController', () => {
   };
 
   beforeEach(async () => {
-    createJobMock = vi.fn((): CreateJobResponse => createResponse);
+    createJobMock = vi.fn(
+      (_dto: CreateJobDto): CreateJobResponse => createResponse,
+    );
 
     findAllJobsMock = vi.fn((): JobSummary[] => summaries);
 
-    findJobByIdMock = vi.fn((): JobDetails => details);
+    findJobByIdMock = vi.fn((_id: string): JobDetails => details);
+
+    cancelJobMock = vi.fn((_id: string): void => undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [JobsController],
@@ -79,6 +84,7 @@ describe('JobsController', () => {
             create: createJobMock,
             findAll: findAllJobsMock,
             findById: findJobByIdMock,
+            cancel: cancelJobMock,
           },
         },
       ],
@@ -92,27 +98,25 @@ describe('JobsController', () => {
       urls: ['https://example.com'],
     };
 
-    const result = controller.create(dto);
-
-    expect(createJobMock).toHaveBeenCalledTimes(1);
+    expect(controller.create(dto)).toBe(createResponse);
     expect(createJobMock).toHaveBeenCalledWith(dto);
-    expect(result).toBe(createResponse);
   });
 
   it('returns all job summaries from the service', () => {
-    const result = controller.findAll();
-
+    expect(controller.findAll()).toBe(summaries);
     expect(findAllJobsMock).toHaveBeenCalledTimes(1);
-    expect(result).toBe(summaries);
   });
 
   it('passes the ID to the service and returns job details', () => {
-    const id = 'job-1';
+    expect(controller.findById('job-1')).toBe(details);
+    expect(findJobByIdMock).toHaveBeenCalledWith('job-1');
+  });
 
-    const result = controller.findById(id);
+  it('passes the ID to cancel and returns undefined', () => {
+    const result = controller.cancel('job-1');
 
-    expect(findJobByIdMock).toHaveBeenCalledTimes(1);
-    expect(findJobByIdMock).toHaveBeenCalledWith(id);
-    expect(result).toBe(details);
+    expect(cancelJobMock).toHaveBeenCalledTimes(1);
+    expect(cancelJobMock).toHaveBeenCalledWith('job-1');
+    expect(result).toBeUndefined();
   });
 });

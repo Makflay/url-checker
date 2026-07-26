@@ -56,6 +56,12 @@ export class JobsProcessor {
 
     const worker = async (): Promise<void> => {
       while (true) {
+        const currentJob = this.jobsRepository.findById(jobId);
+
+        if (!currentJob || currentJob.status !== JobStatus.IN_PROGRESS) {
+          return;
+        }
+
         const currentIndex = nextItemIndex;
         nextItemIndex += 1;
 
@@ -137,13 +143,17 @@ export class JobsProcessor {
   ): void {
     const currentJob = this.jobsRepository.findById(jobId);
 
-    if (!currentJob) {
+    if (
+      !currentJob ||
+      (currentJob.status !== JobStatus.IN_PROGRESS &&
+        currentJob.status !== JobStatus.CANCELLED)
+    ) {
       return;
     }
 
     const currentItem = currentJob.items.find((item) => item.id === itemId);
 
-    if (!currentItem) {
+    if (!currentItem || currentItem.status !== UrlCheckStatus.IN_PROGRESS) {
       return;
     }
 
@@ -179,7 +189,7 @@ export class JobsProcessor {
   private completeJob(jobId: string): void {
     const currentJob = this.jobsRepository.findById(jobId);
 
-    if (!currentJob) {
+    if (!currentJob || currentJob.status !== JobStatus.IN_PROGRESS) {
       return;
     }
 
@@ -191,7 +201,7 @@ export class JobsProcessor {
     );
 
     if (!allItemsFinished) {
-      throw new Error(`Job "${jobId}" still contains unfinished items`);
+      throw new Error(`Job ${jobId} still contains unfinished items`);
     }
 
     const completedJob: Job = {
@@ -208,7 +218,12 @@ export class JobsProcessor {
     try {
       const currentJob = this.jobsRepository.findById(jobId);
 
-      if (!currentJob) {
+      if (
+        !currentJob ||
+        currentJob.status === JobStatus.COMPLETED ||
+        currentJob.status === JobStatus.CANCELLED ||
+        currentJob.status === JobStatus.FAILED
+      ) {
         return;
       }
 

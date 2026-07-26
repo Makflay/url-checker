@@ -1,4 +1,13 @@
-import { Body, Controller, Post, Get, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 
 import { CreateJobDto } from './dto/create-job.dto';
 import type { CreateJobResponse } from './interfaces/create-job-response.interface';
@@ -23,5 +32,11 @@ export class JobsController {
   @Get(':id')
   findById(@Param('id') id: string): JobDetails {
     return this.jobsService.findById(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  cancel(@Param('id') id: string): void {
+    this.jobsService.cancel(id);
   }
 }
