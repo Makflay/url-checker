@@ -16,6 +16,7 @@ import type { JobItem } from './interfaces/job-item.interface';
 import type { Job } from './interfaces/job.interface';
 import { JobsRepository } from './repositories/jobs.repository';
 import { JobsService } from './jobs.service';
+import { JobsProcessor } from './processors/jobs.processor';
 
 function createItem(id: string, url: string, status: UrlCheckStatus): JobItem {
   return {
@@ -57,11 +58,15 @@ describe('JobsService', () => {
   let createJobMock: MockedFunction<JobsRepository['create']>;
   let findAllJobsMock: MockedFunction<JobsRepository['findAll']>;
   let findJobByIdMock: MockedFunction<JobsRepository['findById']>;
+  let processJobMock: MockedFunction<JobsProcessor['process']>;
 
   beforeEach(async () => {
     createJobMock = vi.fn((job: Job): Job => job);
     findAllJobsMock = vi.fn((): Job[] => []);
     findJobByIdMock = vi.fn((): Job | undefined => undefined);
+    processJobMock = vi.fn((_jobId: string): Promise<void> =>
+      Promise.resolve(),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -74,6 +79,12 @@ describe('JobsService', () => {
             findById: findJobByIdMock,
           },
         },
+        {
+          provide: JobsProcessor,
+          useValue: {
+            process: processJobMock,
+          },
+        },
       ],
     }).compile();
 
@@ -81,7 +92,7 @@ describe('JobsService', () => {
   });
 
   describe('create', () => {
-    it('creates and saves a pending job', () => {
+    it('saves a pending job and starts background processing', () => {
       const dto: CreateJobDto = {
         urls: ['https://example.com', 'https://example.org'],
       };
@@ -90,7 +101,11 @@ describe('JobsService', () => {
 
       expect(result.jobId).toEqual(expect.any(String));
       expect(result.jobId).not.toHaveLength(0);
+
       expect(createJobMock).toHaveBeenCalledTimes(1);
+
+      expect(processJobMock).toHaveBeenCalledTimes(1);
+      expect(processJobMock).toHaveBeenCalledWith(result.jobId);
 
       const savedJob = createJobMock.mock.calls[0]?.[0];
 

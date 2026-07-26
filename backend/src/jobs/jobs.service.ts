@@ -11,10 +11,14 @@ import type { JobDetails } from './interfaces/job-details.interface';
 import type { JobStatistics } from './interfaces/job-statistics.interface';
 import type { JobSummary } from './interfaces/job-summary.interface';
 import { JobsRepository } from './repositories/jobs.repository';
+import { JobsProcessor } from './processors/jobs.processor';
 
 @Injectable()
 export class JobsService {
-  constructor(private readonly jobsRepository: JobsRepository) {}
+  constructor(
+    private readonly jobsRepository: JobsRepository,
+    private readonly jobsProcessor: JobsProcessor,
+  ) {}
 
   create(dto: CreateJobDto): CreateJobResponse {
     const jobId = randomUUID();
@@ -42,6 +46,7 @@ export class JobsService {
     };
 
     this.jobsRepository.create(job);
+    void this.jobsProcessor.process(jobId);
 
     return { jobId };
   }
