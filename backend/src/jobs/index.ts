@@ -6,3 +6,5 @@ export * from './interfaces/job-item.interface';
 export * from './interfaces/job-statistics.interface';
 export * from './interfaces/job-summary.interface';
 export * from './interfaces/job.interface';
+
+export * from './repositories/jobs.repository';
