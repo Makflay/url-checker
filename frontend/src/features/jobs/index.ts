@@ -3,7 +3,7 @@ import "./jobs.css";
 export { cancelJob, createJob, getJobById, getJobs } from "./api";
 
 export {
-  JobCreatePlaceholder,
+  JobCreateForm,
   JobDetailsPlaceholder,
   JobsListPlaceholder,
 } from "./components";

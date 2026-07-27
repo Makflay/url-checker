@@ -1,5 +1,5 @@
 import {
-  JobCreatePlaceholder,
+  JobCreateForm,
   JobDetailsPlaceholder,
   JobsListPlaceholder,
 } from "../features/jobs";
@@ -21,7 +21,7 @@ export function App() {
       </header>
 
       <main className="app__container app__main">
-        <JobCreatePlaceholder />
+        <JobCreateForm />
 
         <div className="app__workspace">
           <JobsListPlaceholder />

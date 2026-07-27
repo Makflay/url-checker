@@ -2,18 +2,129 @@
   height: 100%;
 }
 
-.jobs-placeholder--create {
-  min-height: 160px;
-}
-
 .jobs-placeholder--list,
 .jobs-placeholder--details {
   min-height: 360px;
+}
+
+.job-create-form {
+  display: grid;
+  gap: 20px;
+}
+
+.job-create-form__field {
+  display: grid;
+  gap: 8px;
+}
+
+.job-create-form__label {
+  color: #172033;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.job-create-form__textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  padding: 12px 14px;
+  color: #172033;
+  background-color: #ffffff;
+  border: 1px solid #c8d0dc;
+  border-radius: 8px;
+  font: inherit;
+  line-height: 1.5;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.job-create-form__textarea::placeholder {
+  color: #8a94a6;
+}
+
+.job-create-form__textarea:focus-visible {
+  border-color: #3157a4;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(49 87 164 / 18%);
+}
+
+.job-create-form__textarea:disabled {
+  color: #667085;
+  background-color: #f1f3f6;
+  cursor: not-allowed;
+}
+
+.job-create-form__hint {
+  margin: 0;
+  color: #667085;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.job-create-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.job-create-form__button {
+  min-height: 44px;
+  padding: 10px 18px;
+  color: #ffffff;
+  background-color: #3157a4;
+  border: 1px solid #3157a4;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.job-create-form__button:hover:not(:disabled) {
+  background-color: #274887;
+  border-color: #274887;
+}
+
+.job-create-form__button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(49 87 164 / 24%);
+}
+
+.job-create-form__button:disabled {
+  color: #e6eaf0;
+  background-color: #7f92b9;
+  border-color: #7f92b9;
+  cursor: not-allowed;
+}
+
+.job-create-form__error {
+  margin: 0;
+  padding: 12px 14px;
+  color: #8a1c1c;
+  background-color: #fff1f1;
+  border: 1px solid #e8aaaa;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 900px) {
   .jobs-placeholder--list,
   .jobs-placeholder--details {
     min-height: 240px;
+  }
+}
+
+@media (max-width: 600px) {
+  .job-create-form__actions {
+    display: block;
+  }
+
+  .job-create-form__button {
+    width: 100%;
   }
 }

@@ -1,12 +1,6 @@
 import type { JobDetails, JobSummary } from "./job.types";
 
 export type RequestStatus = "idle" | "loading" | "succeeded" | "failed";
-export interface JobsLoadingState {
-  list: RequestStatus;
-  create: RequestStatus;
-  details: RequestStatus;
-  cancel: RequestStatus;
-}
 
 export interface JobsRequestStatus {
   list: RequestStatus;

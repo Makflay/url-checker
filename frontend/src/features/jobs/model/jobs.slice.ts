@@ -25,6 +25,13 @@ const jobsSlice = createSlice({
       state.status.details = "idle";
       state.errors.details = null;
     },
+    clearCreateError(state) {
+      state.errors.create = null;
+
+      if (state.status.create === "failed") {
+        state.status.create = "idle";
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -115,6 +122,7 @@ const jobsSlice = createSlice({
   },
 });
 
-export const { clearActiveJob, setActiveJobId } = jobsSlice.actions;
+export const { clearActiveJob, setActiveJobId, clearCreateError } =
+  jobsSlice.actions;
 
 export const jobsReducer = jobsSlice.reducer;

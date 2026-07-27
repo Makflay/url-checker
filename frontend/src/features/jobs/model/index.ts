@@ -1,4 +1,9 @@
-export { clearActiveJob, jobsReducer, setActiveJobId } from "./jobs.slice";
+export {
+  clearActiveJob,
+  jobsReducer,
+  setActiveJobId,
+  clearCreateError,
+} from "./jobs.slice";
 
 export { initialJobsState } from "./jobs.state";
 

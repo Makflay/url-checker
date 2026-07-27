@@ -15,7 +15,7 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "An unexpected error occured";
+  return "An unexpected error occurred";
 }
 
 function isAbortError(error: unknown): boolean {
