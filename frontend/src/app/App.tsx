@@ -1,8 +1,4 @@
-import {
-  JobCreateForm,
-  JobDetailsPlaceholder,
-  JobsList,
-} from "../features/jobs";
+import { JobCreateForm, JobDetails, JobsList } from "../features/jobs";
 import "./App.css";
 
 export function App() {
@@ -25,7 +21,7 @@ export function App() {
 
         <div className="app__workspace">
           <JobsList />
-          <JobDetailsPlaceholder />
+          <JobDetails />
         </div>
       </main>
     </div>

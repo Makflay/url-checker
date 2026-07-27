@@ -4,9 +4,11 @@ export { cancelJob, createJob, getJobById, getJobs } from "./api";
 
 export {
   JobCreateForm,
-  JobDetailsPlaceholder,
+  JobDetails,
   JobsList,
   JobListItem,
+  JobDetailsSummary,
+  JobUrlResultItem,
 } from "./components";
 
 export {
@@ -23,7 +25,7 @@ export {
 export type {
   CreateJobRequest,
   CreateJobResponse,
-  JobDetails,
+  JobDetails as JobDetailsData,
   JobStatistics,
   JobStatus,
   JobSummary,

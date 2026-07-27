@@ -7,3 +7,9 @@ export {
   formatJobId,
   formatJobStatus,
 } from "./job-list.utils";
+
+export {
+  formatDateTime,
+  formatDuration,
+  formatUrlCheckStatus,
+} from "./job-details.utils";
