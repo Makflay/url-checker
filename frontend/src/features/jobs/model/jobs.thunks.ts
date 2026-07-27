@@ -1,7 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-
 import type { RootState } from "../../../app/store/store";
-import { ApiError } from "../../../shared/api";
+import { ApiError, isAbortError } from "../../../shared/api";
 import { cancelJob, createJob, getJobById, getJobs } from "../api";
 import type {
   CreateJobRequest,
@@ -16,10 +15,6 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "An unexpected error occurred";
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
 }
 
 export const fetchJobsThunk = createAsyncThunk<

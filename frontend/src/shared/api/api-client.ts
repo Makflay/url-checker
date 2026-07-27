@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./api.constants";
 import { ApiError } from "./api-error";
+import { isAbortError } from "./is-abort-error";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -41,13 +42,13 @@ async function readResponseBody(response: Response): Promise<unknown> {
     const text = await response.text();
 
     return text.trim() || null;
-  } catch {
+  } catch (error: unknown) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     return null;
   }
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
 }
 
 export async function apiRequest<T>(
@@ -89,7 +90,10 @@ export async function apiRequest<T>(
 
   try {
     return (await response.json()) as T;
-  } catch {
+  } catch (error: unknown) {
+    if (isAbortError(error)) {
+      throw error;
+    }
     throw new ApiError("Server returned an invalid response", response.status);
   }
 }
