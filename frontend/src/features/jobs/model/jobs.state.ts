@@ -1,10 +1,18 @@
 import type { JobDetails, JobSummary } from "./job.types";
 
+export type RequestStatus = "idle" | "loading" | "succeeded" | "failed";
 export interface JobsLoadingState {
-  list: boolean;
-  create: boolean;
-  details: boolean;
-  cancel: boolean;
+  list: RequestStatus;
+  create: RequestStatus;
+  details: RequestStatus;
+  cancel: RequestStatus;
+}
+
+export interface JobsRequestStatus {
+  list: RequestStatus;
+  create: RequestStatus;
+  details: RequestStatus;
+  cancel: RequestStatus;
 }
 
 export interface JobsErrorsState {
@@ -18,7 +26,8 @@ export interface JobsState {
   jobs: JobSummary[];
   activeJobId: string | null;
   activeJobDetails: JobDetails | null;
-  loading: JobsLoadingState;
+  activeDetailsRequestId: string | null;
+  status: JobsRequestStatus;
   errors: JobsErrorsState;
 }
 
@@ -26,11 +35,12 @@ export const initialJobsState: JobsState = {
   jobs: [],
   activeJobId: null,
   activeJobDetails: null,
-  loading: {
-    list: false,
-    create: false,
-    details: false,
-    cancel: false,
+  activeDetailsRequestId: null,
+  status: {
+    list: "idle",
+    create: "idle",
+    details: "idle",
+    cancel: "idle",
   },
   errors: {
     list: null,

@@ -2,6 +2,13 @@ export { clearActiveJob, jobsReducer, setActiveJobId } from "./jobs.slice";
 
 export { initialJobsState } from "./jobs.state";
 
+export {
+  cancelJobThunk,
+  createJobThunk,
+  fetchJobDetailsThunk,
+  fetchJobsThunk,
+} from "./jobs.thunks";
+
 export type {
   CreateJobRequest,
   CreateJobResponse,
@@ -15,6 +22,7 @@ export type {
 
 export type {
   JobsErrorsState,
-  JobsLoadingState,
   JobsState,
+  JobsRequestStatus,
+  RequestStatus,
 } from "./jobs.state";

@@ -1,6 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-
 import { initialJobsState } from "./jobs.state";
+import {
+  cancelJobThunk,
+  createJobThunk,
+  fetchJobDetailsThunk,
+  fetchJobsThunk,
+} from "./jobs.thunks";
 
 const jobsSlice = createSlice({
   name: "jobs",
@@ -9,14 +14,104 @@ const jobsSlice = createSlice({
     setActiveJobId(state, action: PayloadAction<string | null>) {
       state.activeJobId = action.payload;
       state.activeJobDetails = null;
+      state.activeDetailsRequestId = null;
+      state.status.details = "idle";
       state.errors.details = null;
     },
     clearActiveJob(state) {
       state.activeJobId = null;
       state.activeJobDetails = null;
-      state.loading.details = false;
+      state.activeDetailsRequestId = null;
+      state.status.details = "idle";
       state.errors.details = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchJobsThunk.pending, (state) => {
+        state.status.list = "loading";
+        state.errors.list = null;
+      })
+      .addCase(fetchJobsThunk.fulfilled, (state, action) => {
+        state.status.list = "succeeded";
+        state.jobs = action.payload;
+        state.errors.list = null;
+      })
+      .addCase(fetchJobsThunk.rejected, (state, action) => {
+        state.status.list = "failed";
+        state.errors.list = action.payload ?? "Unable to load jobs";
+      })
+      .addCase(createJobThunk.pending, (state) => {
+        state.status.create = "loading";
+        state.errors.create = null;
+      })
+      .addCase(createJobThunk.fulfilled, (state, action) => {
+        state.status.create = "succeeded";
+        state.activeJobId = action.payload.jobId;
+        state.activeJobDetails = null;
+        state.activeDetailsRequestId = null;
+        state.status.details = "idle";
+        state.errors.create = null;
+        state.errors.details = null;
+      })
+      .addCase(createJobThunk.rejected, (state, action) => {
+        state.status.create = "failed";
+        state.errors.create = action.payload ?? "Unable to create job";
+      })
+      .addCase(fetchJobDetailsThunk.pending, (state, action) => {
+        if (state.activeJobDetails?.id !== action.meta.arg) {
+          state.activeJobDetails = null;
+        }
+
+        state.activeJobId = action.meta.arg;
+        state.activeDetailsRequestId = action.meta.requestId;
+        state.status.details = "loading";
+        state.errors.details = null;
+      })
+      .addCase(fetchJobDetailsThunk.fulfilled, (state, action) => {
+        if (
+          state.activeJobId !== action.meta.arg ||
+          state.activeDetailsRequestId !== action.meta.requestId
+        ) {
+          return;
+        }
+
+        state.activeJobDetails = action.payload;
+        state.activeDetailsRequestId = null;
+        state.status.details = "succeeded";
+        state.errors.details = null;
+      })
+      .addCase(fetchJobDetailsThunk.rejected, (state, action) => {
+        if (
+          state.activeJobId !== action.meta.arg ||
+          state.activeDetailsRequestId !== action.meta.requestId
+        ) {
+          return;
+        }
+
+        state.activeDetailsRequestId = null;
+
+        if (action.meta.aborted) {
+          state.status.details = "idle";
+          state.errors.details = null;
+          return;
+        }
+
+        state.status.details = "failed";
+        state.errors.details = action.payload ?? "Unable to load job details";
+      })
+      .addCase(cancelJobThunk.pending, (state) => {
+        state.status.cancel = "loading";
+        state.errors.cancel = null;
+      })
+      .addCase(cancelJobThunk.fulfilled, (state) => {
+        state.status.cancel = "succeeded";
+        state.errors.cancel = null;
+      })
+      .addCase(cancelJobThunk.rejected, (state, action) => {
+        state.status.cancel = "failed";
+        state.errors.cancel = action.payload ?? "Unable to cancel job";
+      });
   },
 });
 

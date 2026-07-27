@@ -8,7 +8,15 @@ export {
   JobsListPlaceholder,
 } from "./components";
 
-export { clearActiveJob, jobsReducer, setActiveJobId } from "./model";
+export {
+  clearActiveJob,
+  setActiveJobId,
+  cancelJobThunk,
+  createJobThunk,
+  fetchJobDetailsThunk,
+  fetchJobsThunk,
+  jobsReducer,
+} from "./model";
 
 export type {
   CreateJobRequest,
@@ -19,4 +27,8 @@ export type {
   JobSummary,
   JobUrlResult,
   UrlCheckStatus,
+  JobsErrorsState,
+  JobsRequestStatus,
+  JobsState,
+  RequestStatus,
 } from "./model";
