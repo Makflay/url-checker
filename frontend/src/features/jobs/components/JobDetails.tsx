@@ -1,12 +1,13 @@
-import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "../../../app/store";
+//import { useEffect } from "react";
+import { useAppSelector } from "../../../app/store";
 import { Section } from "../../../shared/ui";
-import { fetchJobDetailsThunk } from "../model";
+//import { fetchJobDetailsThunk } from "../model";
 import { JobDetailsSummary } from "./JobDetailsSummary";
 import { JobUrlResultItem } from "./JobUrlResultItem";
+import { useActiveJobPolling } from "../hooks";
 
 export function JobDetails() {
-  const dispatch = useAppDispatch();
+  const { retry } = useActiveJobPolling();
 
   const activeJobId = useAppSelector((state) => state.jobs.activeJobId);
 
@@ -17,18 +18,6 @@ export function JobDetails() {
   const detailsStatus = useAppSelector((state) => state.jobs.status.details);
 
   const detailsError = useAppSelector((state) => state.jobs.errors.details);
-
-  useEffect(() => {
-    if (activeJobId === null) {
-      return;
-    }
-
-    const request = dispatch(fetchJobDetailsThunk(activeJobId));
-
-    return () => {
-      request.abort();
-    };
-  }, [activeJobId, dispatch]);
 
   const details =
     activeJobDetails?.id === activeJobId ? activeJobDetails : null;
@@ -50,7 +39,7 @@ export function JobDetails() {
       return;
     }
 
-    void dispatch(fetchJobDetailsThunk(activeJobId));
+    retry();
   }
   return (
     <Section
