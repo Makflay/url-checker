@@ -2,7 +2,6 @@
   height: 100%;
 }
 
-.jobs-placeholder--list,
 .jobs-placeholder--details {
   min-height: 360px;
 }
@@ -112,8 +111,234 @@
   line-height: 1.5;
 }
 
+.jobs-list {
+  display: grid;
+  gap: 16px;
+}
+
+.jobs-list__state,
+.jobs-list__refreshing {
+  margin: 0;
+  color: #667085;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.jobs-list__refreshing {
+  font-weight: 600;
+}
+
+.jobs-list__error-container {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.jobs-list__error {
+  margin: 0;
+  padding: 12px 14px;
+  color: #8a1c1c;
+  background-color: #fff1f1;
+  border: 1px solid #e8aaaa;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.jobs-list__retry {
+  min-height: 38px;
+  padding: 8px 14px;
+  color: #3157a4;
+  background-color: #ffffff;
+  border: 1px solid #3157a4;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jobs-list__retry:hover:not(:disabled) {
+  color: #ffffff;
+  background-color: #3157a4;
+}
+
+.jobs-list__retry:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(49 87 164 / 24%);
+}
+
+.jobs-list__retry:disabled {
+  color: #8a94a6;
+  border-color: #c8d0dc;
+  cursor: not-allowed;
+}
+
+.jobs-list__items {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jobs-list__item {
+  min-width: 0;
+}
+
+.job-list-item {
+  width: 100%;
+  padding: 16px;
+  color: #172033;
+  background-color: #ffffff;
+  border: 1px solid #d5dbe5;
+  border-radius: 10px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.job-list-item:hover {
+  background-color: #f8faff;
+  border-color: #9aadd2;
+}
+
+.job-list-item:focus-visible {
+  outline: none;
+  border-color: #3157a4;
+  box-shadow: 0 0 0 3px rgb(49 87 164 / 24%);
+}
+
+.job-list-item--active {
+  background-color: #f3f7ff;
+  border: 2px solid #3157a4;
+  box-shadow: inset 4px 0 0 #3157a4;
+}
+
+.job-list-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.job-list-item__identity {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.job-list-item__id {
+  overflow: hidden;
+  color: #172033;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-list-item__date {
+  color: #667085;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.job-list-item__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.job-list-item__status {
+  flex: 0 0 auto;
+}
+
+.job-list-item__selected,
+.job-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.job-list-item__selected {
+  color: #274887;
+  background-color: #e8efff;
+  border-color: #9aadd2;
+}
+
+.job-status--pending {
+  color: #704f00;
+  background-color: #fff8dd;
+  border-color: #e5c96b;
+}
+
+.job-status--in_progress {
+  color: #174b85;
+  background-color: #eaf3ff;
+  border-color: #8eb8e6;
+}
+
+.job-status--completed {
+  color: #17633a;
+  background-color: #eaf8ef;
+  border-color: #8ac7a1;
+}
+
+.job-status--cancelled {
+  color: #5b6472;
+  background-color: #f1f3f6;
+  border-color: #b8c0cc;
+}
+
+.job-status--failed {
+  color: #8a1c1c;
+  background-color: #fff1f1;
+  border-color: #e8aaaa;
+}
+
+.job-list-item__statistics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.job-list-item__stat {
+  min-width: 0;
+  padding: 10px;
+  background-color: #f7f8fa;
+  border-radius: 8px;
+}
+
+.job-list-item__stat dt {
+  overflow: hidden;
+  color: #667085;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.job-list-item__stat dd {
+  margin: 4px 0 0;
+  color: #172033;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 @media (max-width: 900px) {
-  .jobs-placeholder--list,
   .jobs-placeholder--details {
     min-height: 240px;
   }

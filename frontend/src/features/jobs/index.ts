@@ -5,7 +5,8 @@ export { cancelJob, createJob, getJobById, getJobs } from "./api";
 export {
   JobCreateForm,
   JobDetailsPlaceholder,
-  JobsListPlaceholder,
+  JobsList,
+  JobListItem,
 } from "./components";
 
 export {
@@ -15,6 +16,7 @@ export {
   createJobThunk,
   fetchJobDetailsThunk,
   fetchJobsThunk,
+  clearCreateError,
   jobsReducer,
 } from "./model";
 

@@ -12,6 +12,9 @@ const jobsSlice = createSlice({
   initialState: initialJobsState,
   reducers: {
     setActiveJobId(state, action: PayloadAction<string | null>) {
+      if (state.activeJobId === action.payload) {
+        return;
+      }
       state.activeJobId = action.payload;
       state.activeJobDetails = null;
       state.activeDetailsRequestId = null;
