@@ -1,14 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { HTTP_REQUEST_TIMEOUT_MS } from '../constants/http.constants';
+import type { JobsConfig } from '../../config';
 import { HttpClientService } from './http-client.service';
+
+const testConfig: JobsConfig = {
+  headRequestTimeoutMs: 1234,
+  maxConcurrency: 2,
+  artificialDelay: {
+    minMs: 0,
+    maxMs: 0,
+  },
+};
 
 describe('HttpClientService', () => {
   let service: HttpClientService;
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 
   beforeEach(() => {
-    service = new HttpClientService();
+    service = new HttpClientService(testConfig);
     fetchMock = vi.fn<typeof fetch>();
 
     vi.stubGlobal('fetch', fetchMock);
@@ -101,7 +110,7 @@ describe('HttpClientService', () => {
 
     expect(result).toEqual({
       httpStatus: null,
-      errorMessage: `Request timed out after ${HTTP_REQUEST_TIMEOUT_MS} ms`,
+      errorMessage: `Request timed out after 1234 ms`,
     });
   });
 

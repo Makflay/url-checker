@@ -1,10 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 
-import {
-  MAX_CONCURRENT_URL_CHECKS,
-  MAX_RESULT_DELAY_MS,
-  MIN_RESULT_DELAY_MS,
-} from '../constants/processor.constants';
+import { jobsConfig } from '../../config';
+import type { JobsConfig } from '../../config';
+
 import { JobStatus } from '../enums/job-status.enum';
 import { UrlCheckStatus } from '../enums/url-check-status.enum';
 import type { HttpCheckResult } from '../http/http-check-result.interface';
@@ -18,6 +16,8 @@ export class JobsProcessor {
   constructor(
     private readonly jobsRepository: JobsRepository,
     private readonly httpClientService: HttpClientService,
+    @Inject(jobsConfig.KEY)
+    private readonly config: JobsConfig,
   ) {}
 
   async process(jobId: string): Promise<void> {
@@ -79,7 +79,7 @@ export class JobsProcessor {
       }
     };
 
-    const workerCount = Math.min(MAX_CONCURRENT_URL_CHECKS, itemIds.length);
+    const workerCount = Math.min(this.config.maxConcurrency, itemIds.length);
 
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
   }
@@ -241,9 +241,10 @@ export class JobsProcessor {
   }
 
   private getRandomDelayMs(): number {
-    const range = MAX_RESULT_DELAY_MS - MIN_RESULT_DELAY_MS + 1;
+    const { minMs, maxMs } = this.config.artificialDelay;
+    const range = maxMs - minMs + 1;
 
-    return Math.floor(Math.random() * range) + MIN_RESULT_DELAY_MS;
+    return Math.floor(Math.random() * range) + minMs;
   }
 
   private delay(ms: number): Promise<void> {

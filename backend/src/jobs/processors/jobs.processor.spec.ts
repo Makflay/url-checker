@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MAX_CONCURRENT_URL_CHECKS } from '../constants/processor.constants';
+import type { JobsConfig } from '../../config';
 import { JobStatus } from '../enums/job-status.enum';
 import { UrlCheckStatus } from '../enums/url-check-status.enum';
 import { HttpClientService } from '../http/http-client.service';
@@ -10,6 +10,15 @@ import type { HttpCheckResult } from '../http/http-check-result.interface';
 import { JobsRepository } from '../repositories/jobs.repository';
 import { JobsProcessor } from './jobs.processor';
 import { JobsService } from '../jobs.service';
+
+const testJobsConfig: JobsConfig = {
+  headRequestTimeoutMs: 5000,
+  maxConcurrency: 2,
+  artificialDelay: {
+    minMs: 0,
+    maxMs: 0,
+  },
+};
 
 function createPendingJob(id: string, itemCount: number): Job {
   const items: JobItem[] = Array.from(
@@ -49,8 +58,12 @@ describe('JobsProcessor', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
     repository = new JobsRepository();
-    httpClientService = new HttpClientService();
-    processor = new JobsProcessor(repository, httpClientService);
+    httpClientService = new HttpClientService(testJobsConfig);
+    processor = new JobsProcessor(
+      repository,
+      httpClientService,
+      testJobsConfig,
+    );
     service = new JobsService(repository, processor);
   });
 
@@ -105,7 +118,7 @@ describe('JobsProcessor', () => {
 
     const processingPromise = processor.process(job.id);
 
-    expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
+    expect(checkMock).toHaveBeenCalledTimes(testJobsConfig.maxConcurrency);
 
     service.cancel(job.id);
 
@@ -116,7 +129,7 @@ describe('JobsProcessor', () => {
       cancelledDuringProcessing?.items.filter(
         (item) => item.status === UrlCheckStatus.CANCELLED,
       ),
-    ).toHaveLength(job.items.length - MAX_CONCURRENT_URL_CHECKS);
+    ).toHaveLength(job.items.length - testJobsConfig.maxConcurrency);
 
     releaseChecks();
 
@@ -124,7 +137,7 @@ describe('JobsProcessor', () => {
 
     const finalJob = repository.findById(job.id);
 
-    expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
+    expect(checkMock).toHaveBeenCalledTimes(testJobsConfig.maxConcurrency);
     expect(finalJob?.status).toBe(JobStatus.CANCELLED);
 
     const successfulItems = finalJob?.items.filter(
@@ -135,9 +148,9 @@ describe('JobsProcessor', () => {
       (item) => item.status === UrlCheckStatus.CANCELLED,
     );
 
-    expect(successfulItems).toHaveLength(MAX_CONCURRENT_URL_CHECKS);
+    expect(successfulItems).toHaveLength(testJobsConfig.maxConcurrency);
     expect(cancelledItems).toHaveLength(
-      job.items.length - MAX_CONCURRENT_URL_CHECKS,
+      job.items.length - testJobsConfig.maxConcurrency,
     );
   });
 
@@ -318,13 +331,15 @@ describe('JobsProcessor', () => {
 
     const processingPromise = processor.process(job.id);
 
-    expect(checkMock).toHaveBeenCalledTimes(MAX_CONCURRENT_URL_CHECKS);
+    expect(checkMock).toHaveBeenCalledTimes(testJobsConfig.maxConcurrency);
 
     releaseChecks();
 
     await finishProcessing(processingPromise);
 
     expect(checkMock).toHaveBeenCalledTimes(12);
-    expect(maxActiveRequests).toBeLessThanOrEqual(MAX_CONCURRENT_URL_CHECKS);
+    expect(maxActiveRequests).toBeLessThanOrEqual(
+      testJobsConfig.maxConcurrency,
+    );
   });
 });
