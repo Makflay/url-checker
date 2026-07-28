@@ -21,6 +21,6 @@ async function bootstrap(): Promise<void> {
     origin: config.frontendOrigin,
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(config.port);
 }
 void bootstrap();
