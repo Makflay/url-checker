@@ -20,6 +20,7 @@ export interface JobsState {
   jobs: JobSummary[];
   activeJobId: string | null;
   activeJobDetails: JobDetails | null;
+  activeListRequestId: string | null;
   activeDetailsRequestId: string | null;
   cancellingJobId: string | null;
   cancelErrorJobId: string | null;
@@ -31,6 +32,7 @@ export const initialJobsState: JobsState = {
   jobs: [],
   activeJobId: null,
   activeJobDetails: null,
+  activeListRequestId: null,
   activeDetailsRequestId: null,
   cancellingJobId: null,
   cancelErrorJobId: null,

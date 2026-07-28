@@ -38,16 +38,47 @@ const jobsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchJobsThunk.pending, (state) => {
+      .addCase(fetchJobsThunk.pending, (state, action) => {
+        state.activeListRequestId = action.meta.requestId;
         state.status.list = "loading";
         state.errors.list = null;
       })
       .addCase(fetchJobsThunk.fulfilled, (state, action) => {
+        if (state.activeListRequestId !== action.meta.requestId) {
+          return;
+        }
+
+        const activeDetails = state.activeJobDetails;
+
+        state.jobs = action.payload.map((summary) => {
+          if (activeDetails === null || summary.id !== activeDetails.id) {
+            return summary;
+          }
+
+          return {
+            ...summary,
+            status: activeDetails.status,
+            statistics: activeDetails.statistics,
+          };
+        });
+
         state.status.list = "succeeded";
-        state.jobs = action.payload;
+        state.activeListRequestId = null;
         state.errors.list = null;
       })
       .addCase(fetchJobsThunk.rejected, (state, action) => {
+        if (state.activeListRequestId !== action.meta.requestId) {
+          return;
+        }
+
+        state.activeListRequestId = null;
+
+        if (action.meta.aborted) {
+          state.status.list = "idle";
+          state.errors.list = null;
+          return;
+        }
+
         state.status.list = "failed";
         state.errors.list = action.payload ?? "Unable to load jobs";
       })
@@ -95,6 +126,13 @@ const jobsSlice = createSlice({
         state.activeDetailsRequestId = null;
         state.status.details = "succeeded";
         state.errors.details = null;
+
+        const summary = state.jobs.find((job) => job.id === action.payload.id);
+
+        if (summary !== undefined) {
+          summary.status = action.payload.status;
+          summary.statistics = action.payload.statistics;
+        }
       })
       .addCase(fetchJobDetailsThunk.rejected, (state, action) => {
         if (
