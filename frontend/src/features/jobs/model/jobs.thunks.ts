@@ -70,20 +70,28 @@ export const cancelJobThunk = createAsyncThunk<
     state: RootState;
     rejectValue: string;
   }
->("jobs/cancelJob", async (jobId, { dispatch, getState, rejectWithValue }) => {
-  try {
-    await cancelJob(jobId);
+>(
+  "jobs/cancelJob",
+  async (jobId, { dispatch, getState, rejectWithValue }) => {
+    try {
+      await cancelJob(jobId);
 
-    const state = getState();
+      const state = getState();
 
-    void dispatch(fetchJobsThunk());
+      void dispatch(fetchJobsThunk());
 
-    if (state.jobs.activeJobId === jobId) {
-      void dispatch(fetchJobDetailsThunk(jobId));
+      if (state.jobs.activeJobId === jobId) {
+        void dispatch(fetchJobDetailsThunk(jobId));
+      }
+
+      return jobId;
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error));
     }
-
-    return jobId;
-  } catch (error: unknown) {
-    return rejectWithValue(getErrorMessage(error));
-  }
-});
+  },
+  {
+    condition: (_jobId, { getState }) => {
+      return getState().jobs.status.cancel !== "loading";
+    },
+  },
+);

@@ -4,3 +4,4 @@ export { JobsList } from "./JobsList";
 export { JobListItem } from "./JobListItem";
 export { JobDetailsSummary } from "./JobDetailsSummary";
 export { JobUrlResultItem } from "./JobUrlResultItem";
+export { JobCancelAction } from "./JobCancelAction";

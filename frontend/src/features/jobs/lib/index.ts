@@ -17,3 +17,5 @@ export {
 export { ACTIVE_JOB_POLLING_INTERVAL_MS } from "./job-polling.constants";
 
 export { isPollingJobStatus } from "./job-polling.utils";
+
+export { isJobCancellable } from "./job-cancel.utils";

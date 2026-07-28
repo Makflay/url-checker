@@ -21,6 +21,8 @@ export interface JobsState {
   activeJobId: string | null;
   activeJobDetails: JobDetails | null;
   activeDetailsRequestId: string | null;
+  cancellingJobId: string | null;
+  cancelErrorJobId: string | null;
   status: JobsRequestStatus;
   errors: JobsErrorsState;
 }
@@ -30,6 +32,8 @@ export const initialJobsState: JobsState = {
   activeJobId: null,
   activeJobDetails: null,
   activeDetailsRequestId: null,
+  cancellingJobId: null,
+  cancelErrorJobId: null,
   status: {
     list: "idle",
     create: "idle",

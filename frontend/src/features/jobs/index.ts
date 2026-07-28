@@ -9,6 +9,7 @@ export {
   JobListItem,
   JobDetailsSummary,
   JobUrlResultItem,
+  JobCancelAction,
 } from "./components";
 
 export {

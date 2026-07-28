@@ -1,12 +1,14 @@
-//import { useEffect } from "react";
-import { useAppSelector } from "../../../app/store";
+import { useAppDispatch, useAppSelector } from "../../../app/store";
 import { Section } from "../../../shared/ui";
-//import { fetchJobDetailsThunk } from "../model";
 import { JobDetailsSummary } from "./JobDetailsSummary";
 import { JobUrlResultItem } from "./JobUrlResultItem";
 import { useActiveJobPolling } from "../hooks";
+import { JobCancelAction } from "./JobCancelAction";
+import { isJobCancellable } from "../lib";
+import { cancelJobThunk } from "../model";
 
 export function JobDetails() {
+  const dispatch = useAppDispatch();
   const { retry } = useActiveJobPolling();
 
   const activeJobId = useAppSelector((state) => state.jobs.activeJobId);
@@ -18,6 +20,24 @@ export function JobDetails() {
   const detailsStatus = useAppSelector((state) => state.jobs.status.details);
 
   const detailsError = useAppSelector((state) => state.jobs.errors.details);
+
+  const cancelStatus = useAppSelector((state) => state.jobs.status.cancel);
+
+  const cancelError = useAppSelector((state) => state.jobs.errors.cancel);
+
+  const cancellingJobId = useAppSelector((state) => state.jobs.cancellingJobId);
+
+  const cancelErrorJobId = useAppSelector(
+    (state) => state.jobs.cancelErrorJobId,
+  );
+
+  const isAnyCancelLoading = cancelStatus === "loading";
+
+  const isCancellingActiveJob =
+    isAnyCancelLoading && cancellingJobId === activeJobId;
+
+  const visibleCancelError =
+    cancelErrorJobId === activeJobId ? cancelError : null;
 
   const details =
     activeJobDetails?.id === activeJobId ? activeJobDetails : null;
@@ -41,6 +61,20 @@ export function JobDetails() {
 
     retry();
   }
+
+  function handleCancel(): void {
+    if (
+      activeJobId === null ||
+      details === null ||
+      !isJobCancellable(details.status) ||
+      isAnyCancelLoading
+    ) {
+      return;
+    }
+
+    void dispatch(cancelJobThunk(activeJobId));
+  }
+
   return (
     <Section
       title="Job details"
@@ -91,6 +125,15 @@ export function JobDetails() {
             {details ? (
               <>
                 <JobDetailsSummary details={details} />
+
+                {isJobCancellable(details.status) ? (
+                  <JobCancelAction
+                    isCancelling={isCancellingActiveJob}
+                    isDisabled={isAnyCancelLoading}
+                    error={visibleCancelError}
+                    onCancel={handleCancel}
+                  />
+                ) : null}
 
                 <div className="job-details__results">
                   <h3 className="job-details__results-heading">URL results</h3>

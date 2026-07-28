@@ -73,7 +73,12 @@ const jobsSlice = createSlice({
           state.activeJobDetails = null;
         }
 
-        state.activeJobId = action.meta.arg;
+        const isSameJob = state.activeJobDetails?.id === action.meta.arg;
+
+        if (!isSameJob) {
+          state.activeJobDetails = null;
+        }
+
         state.activeDetailsRequestId = action.meta.requestId;
         state.status.details = "loading";
         state.errors.details = null;
@@ -110,17 +115,39 @@ const jobsSlice = createSlice({
         state.status.details = "failed";
         state.errors.details = action.payload ?? "Unable to load job details";
       })
-      .addCase(cancelJobThunk.pending, (state) => {
+      .addCase(cancelJobThunk.pending, (state, action) => {
         state.status.cancel = "loading";
         state.errors.cancel = null;
+        state.cancellingJobId = action.meta.arg;
+        state.cancelErrorJobId = null;
       })
-      .addCase(cancelJobThunk.fulfilled, (state) => {
+      .addCase(cancelJobThunk.fulfilled, (state, action) => {
+        if (state.cancellingJobId !== action.meta.arg) {
+          return;
+        }
+
         state.status.cancel = "succeeded";
         state.errors.cancel = null;
+        state.cancellingJobId = null;
+        state.cancelErrorJobId = null;
       })
       .addCase(cancelJobThunk.rejected, (state, action) => {
+        if (state.cancellingJobId !== action.meta.arg) {
+          return;
+        }
+
+        state.cancellingJobId = null;
+
+        if (action.meta.aborted) {
+          state.status.cancel = "idle";
+          state.errors.cancel = null;
+          state.cancelErrorJobId = null;
+          return;
+        }
+
         state.status.cancel = "failed";
         state.errors.cancel = action.payload ?? "Unable to cancel job";
+        state.cancelErrorJobId = action.meta.arg;
       });
   },
 });
