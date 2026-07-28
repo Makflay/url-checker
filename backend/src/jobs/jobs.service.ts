@@ -100,10 +100,14 @@ export class JobsService {
       };
     });
 
+    const hasInProgressItems = items.some(
+      (item) => item.status === UrlCheckStatus.IN_PROGRESS,
+    );
+
     const cancelledJob: Job = {
       ...job,
       status: JobStatus.CANCELLED,
-      finishedAt: cancelledAt,
+      finishedAt: hasInProgressItems ? null : cancelledAt,
       failureMessage: null,
       items,
     };
