@@ -104,12 +104,6 @@ const jobsSlice = createSlice({
           state.activeJobDetails = null;
         }
 
-        const isSameJob = state.activeJobDetails?.id === action.meta.arg;
-
-        if (!isSameJob) {
-          state.activeJobDetails = null;
-        }
-
         state.activeDetailsRequestId = action.meta.requestId;
         state.status.details = "loading";
         state.errors.details = null;
