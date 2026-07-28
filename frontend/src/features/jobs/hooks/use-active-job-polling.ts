@@ -46,6 +46,17 @@ export function useActiveJobPolling(): ActiveJobPollingControls {
       }
     }
 
+    function scheduleNextRequest(): void {
+      if (!isActive || timeoutId !== null) {
+        return;
+      }
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        void runPollingRequest();
+      }, ACTIVE_JOB_POLLING_INTERVAL_MS);
+    }
+
     async function runPollingRequest(): Promise<void> {
       if (!isActive || currentRequest !== null) {
         return;
@@ -66,14 +77,17 @@ export function useActiveJobPolling(): ActiveJobPollingControls {
           return;
         }
 
-        timeoutId = setTimeout(() => {
-          timeoutId = null;
-          void runPollingRequest();
-        }, ACTIVE_JOB_POLLING_INTERVAL_MS);
+        scheduleNextRequest();
       } catch {
         if (currentRequest === request) {
           currentRequest = null;
         }
+
+        if (!isActive) {
+          return;
+        }
+
+        scheduleNextRequest();
       }
     }
 
