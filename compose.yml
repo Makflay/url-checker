@@ -1,0 +1,54 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      FRONTEND_ORIGIN: http://localhost:8080
+      HEAD_REQUEST_TIMEOUT_MS: "5000"
+      MAX_CONCURRENCY: "5"
+      ARTIFICIAL_DELAY_MIN_MS: "0"
+      ARTIFICIAL_DELAY_MAX_MS: "10000"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/')
+          .then((response) => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1/
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 10s
