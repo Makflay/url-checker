@@ -108,8 +108,10 @@ describe('JobsService', () => {
   });
 
   describe('create', () => {
-    it('saves the job before starting the processor', () => {
+    it('creates and saves a pending job with one pending item for every URL', () => {
       const calls: string[] = [];
+      const processingPromise = new Promise<void>(() => undefined);
+      const urls = ['https://first.example.com', 'https://second.example.com'];
 
       createJobMock.mockImplementation((job: Job): Job => {
         calls.push('repository');
@@ -118,16 +120,86 @@ describe('JobsService', () => {
 
       processJobMock.mockImplementation((): Promise<void> => {
         calls.push('processor');
-        return Promise.resolve();
+        return processingPromise;
       });
 
-      const result = service.create({
-        urls: ['https://example.com'],
-      });
+      const result = service.create({ urls });
 
-      expect(calls).toEqual(['repository', 'processor']);
-      expect(processJobMock).toHaveBeenCalledWith(result.jobId);
       expect(result).not.toBeInstanceOf(Promise);
+      expect(result.jobId).not.toBe('');
+      expect(calls).toEqual(['repository', 'processor']);
+      expect(createJobMock).toHaveBeenCalledTimes(1);
+      expect(processJobMock).toHaveBeenCalledWith(result.jobId);
+
+      const savedJob = createJobMock.mock.calls[0]?.[0];
+
+      expect(savedJob).toBeDefined();
+
+      if (!savedJob) {
+        throw new Error('Expected repository.create to receive a job');
+      }
+
+      expect(savedJob.id).toBe(result.jobId);
+      expect(savedJob.status).toBe(JobStatus.PENDING);
+      expect(savedJob.createdAt).not.toBe('');
+      expect(Number.isNaN(Date.parse(savedJob.createdAt))).toBe(false);
+      expect(savedJob.startedAt).toBeNull();
+      expect(savedJob.finishedAt).toBeNull();
+      expect(savedJob.failureMessage).toBeNull();
+      expect(savedJob.items).toHaveLength(urls.length);
+      expect(savedJob.items.map((item) => item.url)).toEqual(urls);
+
+      const itemIds = savedJob.items.map((item) => item.id);
+
+      expect(new Set(itemIds).size).toBe(itemIds.length);
+
+      savedJob.items.forEach((item) => {
+        expect(item.id).not.toBe('');
+        expect(item.status).toBe(UrlCheckStatus.PENDING);
+        expect(item.httpStatus).toBeNull();
+        expect(item.errorMessage).toBeNull();
+        expect(item.startedAt).toBeNull();
+        expect(item.finishedAt).toBeNull();
+        expect(item.durationMs).toBeNull();
+      });
+    });
+
+    it('creates distinct job and item identifiers for separate jobs', () => {
+      service.create({
+        urls: [
+          'https://first-job-one.example.com',
+          'https://first-job-two.example.com',
+        ],
+      });
+
+      service.create({
+        urls: [
+          'https://second-job-one.example.com',
+          'https://second-job-two.example.com',
+        ],
+      });
+
+      expect(createJobMock).toHaveBeenCalledTimes(2);
+
+      const firstJob = createJobMock.mock.calls[0]?.[0];
+      const secondJob = createJobMock.mock.calls[1]?.[0];
+
+      expect(firstJob).toBeDefined();
+      expect(secondJob).toBeDefined();
+
+      if (!firstJob || !secondJob) {
+        throw new Error('Expected repository.create to receive both jobs');
+      }
+
+      expect(firstJob.id).not.toBe(secondJob.id);
+
+      const firstItemIds = new Set(firstJob.items.map((item) => item.id));
+
+      const secondItemIds = secondJob.items.map((item) => item.id);
+
+      secondItemIds.forEach((itemId) => {
+        expect(firstItemIds.has(itemId)).toBe(false);
+      });
     });
 
     it('does not start processing when saving fails', () => {
@@ -160,6 +232,67 @@ describe('JobsService', () => {
       findJobByIdMock.mockReturnValue(undefined);
 
       expect(() => service.findById('unknown-id')).toThrow(NotFoundException);
+    });
+  });
+
+  describe('statistics', () => {
+    it('returns consistent summary and details statistics for mixed item statuses', () => {
+      const job = createJob(JobStatus.CANCELLED, [
+        createItem('success', UrlCheckStatus.SUCCESS),
+        createItem('error', UrlCheckStatus.ERROR),
+        createItem('cancelled', UrlCheckStatus.CANCELLED),
+      ]);
+
+      findAllJobsMock.mockReturnValue([job]);
+      findJobByIdMock.mockReturnValue(job);
+
+      const summaries = service.findAll();
+      const details = service.findById(job.id);
+
+      expect(summaries).toHaveLength(1);
+
+      const summary = summaries[0];
+
+      expect(summary).toBeDefined();
+
+      if (!summary) {
+        throw new Error('Expected one job summary');
+      }
+
+      const expectedStatistics = {
+        total: 3,
+        pending: 0,
+        inProgress: 0,
+        success: 1,
+        error: 1,
+        cancelled: 1,
+        processed: 3,
+      };
+
+      expect(summary.id).toBe(job.id);
+      expect(summary.createdAt).toBe(job.createdAt);
+      expect(summary.status).toBe(JobStatus.CANCELLED);
+      expect(summary.statistics).toEqual(expectedStatistics);
+
+      expect(details.id).toBe(job.id);
+      expect(details.status).toBe(JobStatus.CANCELLED);
+      expect(details.createdAt).toBe(job.createdAt);
+      expect(details.startedAt).toBe(job.startedAt);
+      expect(details.finishedAt).toBe(job.finishedAt);
+      expect(details.statistics).toEqual(expectedStatistics);
+      expect(details.statistics).toEqual(summary.statistics);
+      expect(details.statistics.processed).toBeLessThanOrEqual(
+        details.statistics.total,
+      );
+
+      const countedItems =
+        details.statistics.pending +
+        details.statistics.inProgress +
+        details.statistics.success +
+        details.statistics.error +
+        details.statistics.cancelled;
+
+      expect(countedItems).toBe(details.statistics.total);
     });
   });
 
@@ -221,7 +354,7 @@ describe('JobsService', () => {
 
       expect(cancelledJob.status).toBe(JobStatus.CANCELLED);
       expect(cancelledJob.startedAt).toBe(job.startedAt);
-      expect(cancelledJob.finishedAt).not.toBeNull();
+      expect(cancelledJob.finishedAt).toBeNull();
 
       expect(cancelledJob.items[0]?.status).toBe(UrlCheckStatus.CANCELLED);
       expect(cancelledJob.items[1]).toEqual(job.items[1]);
