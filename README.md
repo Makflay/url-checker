@@ -108,6 +108,15 @@ url-checker/
 - Node.js, совместимый с проектом;
 - npm.
 
+## Подготовка
+
+### Клонировать репозиторий
+
+```bash
+git clone https://github.com/Makflay/url-checker.git
+cd url-checker
+```
+
 ## Быстрый старт
 
 ### Локально
@@ -115,7 +124,7 @@ url-checker/
 1. Подготовить frontend environment:
 
    ```bash
-   Copy-Item frontend/.env.example frontend/.env
+   cp frontend/.env.example frontend/.env
    ```
 
 2. Установить зависимости backend:
@@ -240,7 +249,7 @@ cp .env.example .env
 В bash:
 
 ```bash
-Copy-Item .env.example .env
+cp .env.example .env
 ```
 
 Запустить development mode:
@@ -296,7 +305,7 @@ cp .env.example .env
 В bash:
 
 ```bash
-Copy-Item .env.example .env
+cp .env.example .env
 ```
 
 Пример содержит:
