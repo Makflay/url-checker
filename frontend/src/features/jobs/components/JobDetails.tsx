@@ -47,8 +47,6 @@ export function JobDetails() {
     details === null &&
     (detailsStatus === "idle" || detailsStatus === "loading");
 
-  const isRefreshing = detailsStatus === "loading" && details !== null;
-
   const requestError =
     detailsStatus === "failed"
       ? (detailsError ?? "Unable to load job details.")
@@ -77,6 +75,7 @@ export function JobDetails() {
 
   return (
     <Section
+      className="job-details-panel"
       title="Job details"
       description="View progress and individual URL results."
     >
@@ -87,12 +86,6 @@ export function JobDetails() {
           </p>
         ) : (
           <>
-            {isRefreshing ? (
-              <p className="job-details__refreshing" role="status">
-                Updating…
-              </p>
-            ) : null}
-
             {requestError ? (
               <div className="job-details__error-container">
                 <p className="job-details__error" role="alert">

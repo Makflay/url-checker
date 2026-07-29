@@ -21,8 +21,6 @@ export function JobsList() {
 
   const isInitialLoading = listStatus === "loading" && jobs.length === 0;
 
-  const isRefreshing = listStatus === "loading" && jobs.length > 0;
-
   const isEmpty =
     listStatus !== "loading" && jobs.length === 0 && listError === null;
 
@@ -35,14 +33,12 @@ export function JobsList() {
   }
 
   return (
-    <Section title="Jobs" description="Select a job to view its details.">
+    <Section
+      className="jobs-panel"
+      title="Jobs"
+      description="Select a job to view its details."
+    >
       <div className="jobs-list">
-        {isRefreshing ? (
-          <p className="jobs-list__refreshing" aria-live="polite">
-            Updating…
-          </p>
-        ) : null}
-
         {listError ? (
           <div className="jobs-list__error-container">
             <p className="jobs-list__error" role="alert">

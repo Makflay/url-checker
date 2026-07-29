@@ -103,21 +103,31 @@
   line-height: 1.5;
 }
 
-.jobs-list {
+.jobs-panel,
+.job-details-panel {
   display: grid;
-  gap: 16px;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
 }
 
-.jobs-list__state,
-.jobs-list__refreshing {
+.jobs-panel .section__content,
+.job-details-panel .section__content {
+  min-height: 0;
+}
+
+.jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+
+.jobs-list__state {
   margin: 0;
   color: #667085;
   font-size: 0.9rem;
   line-height: 1.5;
-}
-
-.jobs-list__refreshing {
-  font-weight: 600;
 }
 
 .jobs-list__error-container {
@@ -166,9 +176,15 @@
 
 .jobs-list__items {
   display: grid;
+  flex: 1 1 auto;
+  align-content: start;
   gap: 12px;
+  min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   list-style: none;
 }
 
@@ -331,12 +347,14 @@
 }
 
 .job-details {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  height: 100%;
+  min-height: 0;
 }
 
-.job-details__state,
-.job-details__refreshing {
+.job-details__state {
   margin: 0;
   color: #667085;
   font-size: 0.9rem;
@@ -495,14 +513,22 @@
 
 .job-details__results {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  flex: 1 1 auto;
   gap: 12px;
+  min-height: 0;
 }
 
 .job-url-results {
   display: grid;
+  align-content: start;
   gap: 12px;
+  min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   list-style: none;
 }
 
@@ -686,6 +712,29 @@
   border-radius: 8px;
   font-size: 0.85rem;
   line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .jobs-panel,
+  .job-details-panel {
+    display: block;
+  }
+
+  .jobs-list,
+  .job-details {
+    height: auto;
+  }
+
+  .job-details__results {
+    grid-template-rows: auto auto;
+  }
+
+  .jobs-list__items,
+  .job-url-results {
+    overflow-y: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+  }
 }
 
 @media (max-width: 600px) {

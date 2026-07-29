@@ -54,12 +54,15 @@
     minmax(0, 1fr)
     minmax(0, 1.4fr);
   gap: 24px;
+  height: clamp(40rem, 96vh, 75rem);
+  min-height: 0;
   align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .app__workspace {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
   }
 }
 
