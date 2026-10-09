@@ -21,13 +21,6 @@ const jobsSlice = createSlice({
       state.status.details = "idle";
       state.errors.details = null;
     },
-    clearActiveJob(state) {
-      state.activeJobId = null;
-      state.activeJobDetails = null;
-      state.activeDetailsRequestId = null;
-      state.status.details = "idle";
-      state.errors.details = null;
-    },
     clearCreateError(state) {
       state.errors.create = null;
 
@@ -184,7 +177,6 @@ const jobsSlice = createSlice({
   },
 });
 
-export const { clearActiveJob, setActiveJobId, clearCreateError } =
-  jobsSlice.actions;
+export const { setActiveJobId, clearCreateError } = jobsSlice.actions;
 
 export const jobsReducer = jobsSlice.reducer;

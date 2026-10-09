@@ -26,10 +26,6 @@ export class JobsRepository {
     return this.jobs.get(id);
   }
 
-  exists(id: string): boolean {
-    return this.jobs.has(id);
-  }
-
   update(id: string, job: Job): Job | undefined {
     if (!this.jobs.has(id)) {
       return undefined;
