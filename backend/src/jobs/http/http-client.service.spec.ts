@@ -39,8 +39,8 @@ describe('HttpClientService', () => {
     const result = await service.check(url);
 
     expect(result).toEqual({
+      type: 'success',
       httpStatus: 200,
-      errorMessage: null,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -65,6 +65,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://example.com/redirect');
 
     expect(result).toEqual({
+      type: 'http_error',
       httpStatus: 302,
       errorMessage: 'HTTP request ended with redirect status 302',
     });
@@ -80,6 +81,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://example.com/missing');
 
     expect(result).toEqual({
+      type: 'http_error',
       httpStatus: 404,
       errorMessage: 'HTTP request returned status 404',
     });
@@ -95,6 +97,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://example.com/error');
 
     expect(result).toEqual({
+      type: 'http_error',
       httpStatus: 500,
       errorMessage: 'HTTP request returned status 500',
     });
@@ -106,11 +109,9 @@ describe('HttpClientService', () => {
     const result = await service.check('https://unavailable.example.com');
 
     expect(result).toEqual({
-      httpStatus: null,
+      type: 'transport_error',
       errorMessage: 'HTTP request failed',
     });
-
-    expect(result.errorMessage).not.toContain('fetch failed');
   });
 
   it('normalizes a timeout error', async () => {
@@ -124,7 +125,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://slow.example.com');
 
     expect(result).toEqual({
-      httpStatus: null,
+      type: 'transport_error',
       errorMessage: `Request timed out after 1234 ms`,
     });
   });
@@ -137,7 +138,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://aborted.example.com');
 
     expect(result).toEqual({
-      httpStatus: null,
+      type: 'transport_error',
       errorMessage: 'Request was aborted',
     });
   });
@@ -148,7 +149,7 @@ describe('HttpClientService', () => {
     const result = await service.check('https://example.com');
 
     expect(result).toEqual({
-      httpStatus: null,
+      type: 'transport_error',
       errorMessage: 'HTTP request failed',
     });
   });

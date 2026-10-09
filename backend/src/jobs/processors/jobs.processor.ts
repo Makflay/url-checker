@@ -158,28 +158,24 @@ export class JobsProcessor {
       return;
     }
 
-    const isSuccessfulHttpResponse =
-      result.httpStatus !== null &&
-      result.httpStatus >= 200 &&
-      result.httpStatus < 300;
-
-    const completedItem: JobItem = isSuccessfulHttpResponse
-      ? {
-          ...currentItem,
-          status: UrlCheckStatus.SUCCESS,
-          httpStatus: result.httpStatus,
-          errorMessage: null,
-          finishedAt,
-          durationMs,
-        }
-      : {
-          ...currentItem,
-          status: UrlCheckStatus.ERROR,
-          httpStatus: null,
-          errorMessage: result.errorMessage ?? 'HTTP request failed',
-          finishedAt,
-          durationMs,
-        };
+    const completedItem: JobItem =
+      result.type === 'success'
+        ? {
+            ...currentItem,
+            status: UrlCheckStatus.SUCCESS,
+            httpStatus: result.httpStatus,
+            errorMessage: null,
+            finishedAt,
+            durationMs,
+          }
+        : {
+            ...currentItem,
+            status: UrlCheckStatus.ERROR,
+            httpStatus: result.type === 'http_error' ? result.httpStatus : null,
+            errorMessage: result.errorMessage,
+            finishedAt,
+            durationMs,
+          };
 
     const updatedJob: Job = {
       ...currentJob,

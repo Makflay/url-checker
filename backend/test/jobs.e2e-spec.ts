@@ -199,9 +199,10 @@ describe('Jobs API (e2e)', () => {
   beforeEach(async () => {
     deferredCleanups.length = 0;
 
-    checkMock = vi
-      .fn<CheckFunction>()
-      .mockResolvedValue({ httpStatus: 200, errorMessage: null });
+    checkMock = vi.fn<CheckFunction>().mockResolvedValue({
+      type: 'success',
+      httpStatus: 200,
+    });
 
     testingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -244,7 +245,7 @@ describe('Jobs API (e2e)', () => {
     checkMock.mockImplementation(() => {
       const deferred = trackDeferred({
         httpStatus: 200,
-        errorMessage: null,
+        type: 'success',
       });
 
       activeChecks.push(deferred);
@@ -322,7 +323,7 @@ describe('Jobs API (e2e)', () => {
     activeChecks.forEach((deferred) => {
       deferred.resolve({
         httpStatus: 200,
-        errorMessage: null,
+        type: 'success',
       });
     });
 
@@ -337,14 +338,15 @@ describe('Jobs API (e2e)', () => {
       if (url === successUrl) {
         return Promise.resolve({
           httpStatus: 204,
-          errorMessage: null,
+          type: 'success',
         });
       }
 
       if (url === httpErrorUrl) {
         return Promise.resolve({
-          httpStatus: null,
-          errorMessage: 'HTTP request failed',
+          type: 'http_error',
+          httpStatus: 404,
+          errorMessage: 'HTTP request returned status 404',
         });
       }
 
@@ -440,7 +442,7 @@ describe('Jobs API (e2e)', () => {
     checkMock.mockImplementation(() => {
       const deferred = trackDeferred({
         httpStatus: 200,
-        errorMessage: null,
+        type: 'success',
       });
 
       activeChecks.push(deferred);
@@ -515,7 +517,7 @@ describe('Jobs API (e2e)', () => {
     activeChecks.forEach((deferred) => {
       deferred.resolve({
         httpStatus: 200,
-        errorMessage: null,
+        type: 'success',
       });
     });
 

@@ -122,7 +122,7 @@ describe('JobsProcessor', () => {
 
     const checkMock = vi.spyOn(httpClientService, 'check').mockResolvedValue({
       httpStatus: 204,
-      errorMessage: null,
+      type: 'success',
     });
 
     const processingPromise = delayedProcessor.process(job.id);
@@ -185,12 +185,12 @@ describe('JobsProcessor', () => {
 
     const checkMock = vi
       .spyOn(httpClientService, 'check')
-      .mockImplementation(async () => {
+      .mockImplementation(async (): Promise<HttpCheckResult> => {
         await checkGate;
 
         return {
           httpStatus: 200,
-          errorMessage: null,
+          type: 'success',
         };
       });
 
@@ -259,8 +259,9 @@ describe('JobsProcessor', () => {
     await vi.advanceTimersByTimeAsync(100);
 
     pendingCheck.resolve({
+      type: 'http_error',
       httpStatus: 404,
-      errorMessage: null,
+      errorMessage: 'HTTP request returned status 404',
     });
 
     await finishProcessing(processingPromise);
@@ -273,8 +274,9 @@ describe('JobsProcessor', () => {
     expect(finalJob?.status).not.toBe(JobStatus.FAILED);
     expect(finalJob?.finishedAt).not.toBeNull();
 
-    expect(finalItem?.status).toBe(UrlCheckStatus.SUCCESS);
+    expect(finalItem?.status).toBe(UrlCheckStatus.ERROR);
     expect(finalItem?.httpStatus).toBe(404);
+    expect(finalItem?.errorMessage).toBe('HTTP request returned status 404');
     expect(finalItem?.finishedAt).not.toBeNull();
     expect(finalItem?.durationMs).toBeGreaterThanOrEqual(100);
 
@@ -298,20 +300,22 @@ describe('JobsProcessor', () => {
     let firstCalls = 0;
     let secondCalls = 0;
 
-    vi.spyOn(httpClientService, 'check').mockImplementation(async (url) => {
-      if (url.includes('cancel-isolation-a')) {
-        firstCalls += 1;
-        await firstGate.promise;
-      } else {
-        secondCalls += 1;
-        await secondGate.promise;
-      }
+    vi.spyOn(httpClientService, 'check').mockImplementation(
+      async (url): Promise<HttpCheckResult> => {
+        if (url.includes('cancel-isolation-a')) {
+          firstCalls += 1;
+          await firstGate.promise;
+        } else {
+          secondCalls += 1;
+          await secondGate.promise;
+        }
 
-      return {
-        httpStatus: 200,
-        errorMessage: null,
-      };
-    });
+        return {
+          httpStatus: 200,
+          type: 'success',
+        };
+      },
+    );
 
     const firstProcessing = processor.process(firstJob.id);
     const secondProcessing = processor.process(secondJob.id);
@@ -384,7 +388,7 @@ describe('JobsProcessor', () => {
 
     resolveCheck({
       httpStatus: 200,
-      errorMessage: null,
+      type: 'success',
     });
 
     await finishProcessing(processingPromise);
@@ -430,6 +434,7 @@ describe('JobsProcessor', () => {
     repository.create(job);
 
     const checkMock = vi.spyOn(httpClientService, 'check').mockResolvedValue({
+      type: 'http_error',
       httpStatus: 404,
       errorMessage: 'HTTP request returned status 404',
     });
@@ -470,16 +475,16 @@ describe('JobsProcessor', () => {
 
     const checkMock = vi
       .spyOn(httpClientService, 'check')
-      .mockImplementation((url) => {
+      .mockImplementation((url): Promise<HttpCheckResult> => {
         if (url === job.items[0]?.url) {
           return Promise.resolve({
             httpStatus: 200,
-            errorMessage: null,
+            type: 'success',
           });
         }
 
         return Promise.resolve({
-          httpStatus: null,
+          type: 'transport_error',
           errorMessage: 'HTTP request failed',
         });
       });
@@ -572,7 +577,7 @@ describe('JobsProcessor', () => {
 
     secondCheck.resolve({
       httpStatus: 200,
-      errorMessage: null,
+      type: 'success',
     });
 
     await vi.runAllTimersAsync();
@@ -631,7 +636,7 @@ describe('JobsProcessor', () => {
 
     lateCheck.resolve({
       httpStatus: 200,
-      errorMessage: null,
+      type: 'success',
     });
 
     await vi.runAllTimersAsync();
@@ -681,7 +686,7 @@ describe('JobsProcessor', () => {
 
     const checkMock = vi
       .spyOn(httpClientService, 'check')
-      .mockImplementation(async () => {
+      .mockImplementation(async (): Promise<HttpCheckResult> => {
         activeRequests += 1;
         maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
 
@@ -691,7 +696,7 @@ describe('JobsProcessor', () => {
 
         return {
           httpStatus: 200,
-          errorMessage: null,
+          type: 'success',
         };
       });
 
@@ -744,7 +749,7 @@ describe('JobsProcessor', () => {
 
     const checkMock = vi
       .spyOn(httpClientService, 'check')
-      .mockImplementation(async (url) => {
+      .mockImplementation(async (url): Promise<HttpCheckResult> => {
         const isFirstJob = url.includes('concurrent-a');
 
         if (isFirstJob) {
@@ -764,8 +769,8 @@ describe('JobsProcessor', () => {
         }
 
         return {
+          type: 'success',
           httpStatus: 200,
-          errorMessage: null,
         };
       });
 

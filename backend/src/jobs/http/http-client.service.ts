@@ -22,8 +22,8 @@ export class HttpClientService {
 
       if (response.ok) {
         return {
+          type: 'success',
           httpStatus: response.status,
-          errorMessage: null,
         };
       }
 
@@ -33,12 +33,13 @@ export class HttpClientService {
           : `HTTP request returned status ${response.status}`;
 
       return {
+        type: 'http_error',
         httpStatus: response.status,
         errorMessage,
       };
     } catch (error: unknown) {
       return {
-        httpStatus: null,
+        type: 'transport_error',
         errorMessage: this.getSafeErrorMessage(error),
       };
     }
