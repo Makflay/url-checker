@@ -425,6 +425,45 @@ describe('JobsProcessor', () => {
     expect(repository.findById(job.id)?.failureMessage).toBeNull();
   });
 
+  it('completes the job after preserving an HTTP-error status and message', async () => {
+    const job = createPendingJob('job-http-error', 1);
+    repository.create(job);
+
+    const checkMock = vi.spyOn(httpClientService, 'check').mockResolvedValue({
+      httpStatus: 404,
+      errorMessage: 'HTTP request returned status 404',
+    });
+
+    const processingPromise = processor.process(job.id);
+
+    await finishProcessing(processingPromise);
+
+    const finalJob = repository.findById(job.id);
+    const errorItem = finalJob?.items[0];
+
+    expect(checkMock).toHaveBeenCalledOnce();
+    expect(checkMock).toHaveBeenCalledWith(job.items[0]?.url);
+
+    expect(finalJob?.status).toBe(JobStatus.COMPLETED);
+    expect(finalJob?.status).not.toBe(JobStatus.FAILED);
+    expect(finalJob?.failureMessage).toBeNull();
+    expect(finalJob?.finishedAt).not.toBeNull();
+
+    expect(errorItem?.status).toBe(UrlCheckStatus.ERROR);
+    expect(errorItem?.httpStatus).toBe(404);
+    expect(errorItem?.errorMessage).toBe('HTTP request returned status 404');
+    expect(errorItem?.startedAt).not.toBeNull();
+    expect(errorItem?.finishedAt).not.toBeNull();
+    expect(errorItem?.durationMs).toBeGreaterThanOrEqual(0);
+
+    expect(
+      finalJob?.items.filter((item) => item.status === UrlCheckStatus.SUCCESS),
+    ).toHaveLength(0);
+    expect(
+      finalJob?.items.filter((item) => item.status === UrlCheckStatus.ERROR),
+    ).toHaveLength(1);
+  });
+
   it('completes the job after preserving successful and transport-error URL results', async () => {
     const job = createPendingJob('job-mixed-results', 2);
     repository.create(job);

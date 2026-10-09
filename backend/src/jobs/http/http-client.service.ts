@@ -20,9 +20,21 @@ export class HttpClientService {
         signal: AbortSignal.timeout(this.config.headRequestTimeoutMs),
       });
 
+      if (response.ok) {
+        return {
+          httpStatus: response.status,
+          errorMessage: null,
+        };
+      }
+
+      const errorMessage =
+        response.status >= 300 && response.status < 400
+          ? `HTTP request ended with redirect status ${response.status}`
+          : `HTTP request returned status ${response.status}`;
+
       return {
         httpStatus: response.status,
-        errorMessage: null,
+        errorMessage,
       };
     } catch (error: unknown) {
       return {

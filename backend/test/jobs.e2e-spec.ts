@@ -331,7 +331,7 @@ describe('Jobs API (e2e)', () => {
 
   it('completes a job with successful and failed URL checks', async () => {
     const successUrl = 'https://success.example.com';
-    const errorUrl = 'https://error.example.com';
+    const httpErrorUrl = 'https://error.example.com';
 
     checkMock.mockImplementation((url) => {
       if (url === successUrl) {
@@ -341,7 +341,7 @@ describe('Jobs API (e2e)', () => {
         });
       }
 
-      if (url === errorUrl) {
+      if (url === httpErrorUrl) {
         return Promise.resolve({
           httpStatus: null,
           errorMessage: 'HTTP request failed',
@@ -354,7 +354,7 @@ describe('Jobs API (e2e)', () => {
     const createResponse = await request(app.getHttpServer())
       .post('/api/jobs')
       .send({
-        urls: [successUrl, errorUrl],
+        urls: [successUrl, httpErrorUrl],
       })
       .expect(201);
 
@@ -374,7 +374,7 @@ describe('Jobs API (e2e)', () => {
     expectParseableTimestamp(details.finishedAt);
 
     const successItem = details.items.find((item) => item.url === successUrl);
-    const errorItem = details.items.find((item) => item.url === errorUrl);
+    const errorItem = details.items.find((item) => item.url === httpErrorUrl);
 
     expect(successItem).toBeDefined();
     expect(errorItem).toBeDefined();
@@ -392,8 +392,8 @@ describe('Jobs API (e2e)', () => {
     expect(successItem.durationMs ?? -1).toBeGreaterThanOrEqual(0);
 
     expect(errorItem.status).toBe(UrlCheckStatus.ERROR);
-    expect(errorItem.httpStatus).toBeNull();
-    expect(errorItem.errorMessage).toBe('HTTP request failed');
+    expect(errorItem.httpStatus).toBe(404);
+    expect(errorItem.errorMessage).toBe('HTTP request returned status 404');
     expectParseableTimestamp(errorItem.startedAt);
     expectParseableTimestamp(errorItem.finishedAt);
     expect(errorItem.durationMs).not.toBeNull();

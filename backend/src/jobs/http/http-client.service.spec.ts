@@ -55,7 +55,22 @@ describe('HttpClientService', () => {
     expect(fetchCall?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('returns 404 as a received HTTP response', async () => {
+  it('returns a final 3xx response as an HTTP error', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(null, {
+        status: 302,
+      }),
+    );
+
+    const result = await service.check('https://example.com/redirect');
+
+    expect(result).toEqual({
+      httpStatus: 302,
+      errorMessage: 'HTTP request ended with redirect status 302',
+    });
+  });
+
+  it('returns 404 as an HTTP error with the response status', async () => {
     fetchMock.mockResolvedValue(
       new Response(null, {
         status: 404,
@@ -66,11 +81,11 @@ describe('HttpClientService', () => {
 
     expect(result).toEqual({
       httpStatus: 404,
-      errorMessage: null,
+      errorMessage: 'HTTP request returned status 404',
     });
   });
 
-  it('returns 500 as a received HTTP response', async () => {
+  it('returns 500 as an HTTP error with the response status', async () => {
     fetchMock.mockResolvedValue(
       new Response(null, {
         status: 500,
@@ -81,7 +96,7 @@ describe('HttpClientService', () => {
 
     expect(result).toEqual({
       httpStatus: 500,
-      errorMessage: null,
+      errorMessage: 'HTTP request returned status 500',
     });
   });
 
