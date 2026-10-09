@@ -120,12 +120,14 @@ export function validateEnvironment(
       'ARTIFICIAL_DELAY_MIN_MS',
       DEFAULT_ARTIFICIAL_DELAY_MIN_MS,
       0,
+      DEFAULT_ARTIFICIAL_DELAY_MAX_MS,
     ),
     ARTIFICIAL_DELAY_MAX_MS: parseInteger(
       environment.ARTIFICIAL_DELAY_MAX_MS,
       'ARTIFICIAL_DELAY_MAX_MS',
       DEFAULT_ARTIFICIAL_DELAY_MAX_MS,
       0,
+      DEFAULT_ARTIFICIAL_DELAY_MAX_MS,
     ),
   };
 

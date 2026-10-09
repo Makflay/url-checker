@@ -7,4 +7,4 @@ export const DEFAULT_ARTIFICIAL_DELAY_MAX_MS = 10_000;
 
 export const MIN_PORT = 1;
 export const MAX_PORT = 65_535;
-export const MAX_CONCURRENCY_LIMIT = 100;
+export const MAX_CONCURRENCY_LIMIT = 5;
