@@ -187,6 +187,15 @@ export class JobsProcessor {
     this.jobsRepository.update(jobId, updatedJob);
   }
 
+  private areAllItemsFinished(job: Job): boolean {
+    return job.items.every(
+      (item) =>
+        item.status === UrlCheckStatus.SUCCESS ||
+        item.status === UrlCheckStatus.ERROR ||
+        item.status === UrlCheckStatus.CANCELLED,
+    );
+  }
+
   private completeJob(jobId: string): void {
     const currentJob = this.jobsRepository.findById(jobId);
 
@@ -194,14 +203,7 @@ export class JobsProcessor {
       return;
     }
 
-    const allItemsFinished = currentJob.items.every(
-      (item) =>
-        item.status === UrlCheckStatus.SUCCESS ||
-        item.status === UrlCheckStatus.ERROR ||
-        item.status === UrlCheckStatus.CANCELLED,
-    );
-
-    if (!allItemsFinished) {
+    if (!this.areAllItemsFinished(currentJob)) {
       throw new Error(`Job ${jobId} still contains unfinished items`);
     }
 
@@ -226,14 +228,7 @@ export class JobsProcessor {
       return;
     }
 
-    const allItemsFinished = currentJob.items.every(
-      (item) =>
-        item.status === UrlCheckStatus.SUCCESS ||
-        item.status === UrlCheckStatus.ERROR ||
-        item.status === UrlCheckStatus.CANCELLED,
-    );
-
-    if (!allItemsFinished) {
+    if (!this.areAllItemsFinished(currentJob)) {
       return;
     }
 
