@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 
 import { jobsConfig } from '../../config';
 import type { JobsConfig } from '../../config';
@@ -13,6 +13,7 @@ import { JobsRepository } from '../repositories/jobs.repository';
 
 @Injectable()
 export class JobsProcessor {
+  private readonly logger = new Logger(JobsProcessor.name);
   constructor(
     private readonly jobsRepository: JobsRepository,
     private readonly httpClientService: HttpClientService,
@@ -47,7 +48,11 @@ export class JobsProcessor {
       await this.processItems(jobId, itemIds);
       this.completeJob(jobId);
       this.finalizeCancelledJob(jobId);
-    } catch (_error: unknown) {
+    } catch (error: unknown) {
+      this.logUnexpectedError(
+        `Unexpected error while processing job ${jobId}`,
+        error,
+      );
       this.markJobAsFailed(jobId);
     }
   }
@@ -296,8 +301,44 @@ export class JobsProcessor {
       };
 
       this.jobsRepository.update(jobId, failedJob);
-    } catch (_error: unknown) {
+    } catch (error: unknown) {
+      this.logUnexpectedError(`Failed to mark job ${jobId} as failed`, error);
+    }
+  }
+
+  private logUnexpectedError(message: string, error: unknown): void {
+    if (error instanceof Error) {
+      this.logger.error(`${message}: ${error.message}`, error.stack);
+
       return;
+    }
+
+    this.logger.error(`${message}: ${this.formatUnknownError(error)}`);
+  }
+
+  private formatUnknownError(error: unknown): string {
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      const serializedError = JSON.stringify(error);
+
+      if (serializedError !== undefined) {
+        return serializedError;
+      }
+    } catch {
+      try {
+        return String(error);
+      } catch {
+        return 'Unserializable thrown value';
+      }
+    }
+
+    try {
+      return String(error);
+    } catch {
+      return 'Unserializable thrown value';
     }
   }
 
