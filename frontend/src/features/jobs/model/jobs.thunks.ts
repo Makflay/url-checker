@@ -72,18 +72,10 @@ export const cancelJobThunk = createAsyncThunk<
   }
 >(
   "jobs/cancelJob",
-  async (jobId, { dispatch, getState, rejectWithValue }) => {
+  async (jobId, { dispatch, rejectWithValue }) => {
     try {
       await cancelJob(jobId);
-
-      const state = getState();
-
       void dispatch(fetchJobsThunk());
-
-      if (state.jobs.activeJobId === jobId) {
-        void dispatch(fetchJobDetailsThunk(jobId));
-      }
-
       return jobId;
     } catch (error: unknown) {
       return rejectWithValue(getErrorMessage(error));

@@ -73,7 +73,10 @@ export function useActiveJobPolling(): ActiveJobPollingControls {
           currentRequest = null;
         }
 
-        if (!isActive || !isPollingJobStatus(details.status)) {
+        if (
+          !isActive ||
+          !isPollingJobStatus(details.status, details.finishedAt)
+        ) {
           return;
         }
 

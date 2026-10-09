@@ -287,6 +287,82 @@ describe("useActiveJobPolling", () => {
     },
   );
 
+  it("continues polling an unfinished cancelled job and stops after finalization", async () => {
+    const unfinishedCancelledDetails = {
+      ...createJobDetails("job-cancelled", "cancelled"),
+      finishedAt: null,
+      statistics: {
+        total: 1,
+        pending: 0,
+        inProgress: 1,
+        success: 0,
+        error: 0,
+        cancelled: 0,
+        processed: 0,
+      },
+      items: [
+        {
+          id: "job-cancelled-item",
+          url: "https://job-cancelled.example.com",
+          status: "in_progress" as const,
+          httpStatus: null,
+          errorMessage: null,
+          startedAt: "2026-01-01T10:00:01.000Z",
+          finishedAt: null,
+          durationMs: null,
+        },
+      ],
+    };
+
+    const finalizedCancelledDetails = createJobDetails(
+      "job-cancelled",
+      "cancelled",
+    );
+
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse(unfinishedCancelledDetails))
+      .mockResolvedValueOnce(createJsonResponse(finalizedCancelledDetails));
+
+    const store = createTestStore("job-cancelled");
+    const wrapper = createStoreWrapper(store);
+
+    const { unmount } = renderHook(() => useActiveJobPolling(), {
+      wrapper,
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    await flushAsyncWork();
+
+    expect(store.getState().jobs.activeJobDetails).toEqual(
+      unfinishedCancelledDetails,
+    );
+    expect(store.getState().jobs.activeJobDetails?.finishedAt).toBeNull();
+    expect(vi.getTimerCount()).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACTIVE_JOB_POLLING_INTERVAL_MS);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await flushAsyncWork();
+
+    expect(store.getState().jobs.activeJobDetails).toEqual(
+      finalizedCancelledDetails,
+    );
+    expect(store.getState().jobs.activeJobDetails?.finishedAt).not.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACTIVE_JOB_POLLING_INTERVAL_MS * 3);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    unmount();
+  });
+
   it("does not start a request when there is no active job", () => {
     const store = createTestStore(null);
     const wrapper = createStoreWrapper(store);
