@@ -215,7 +215,12 @@ function assertExpectedConnectorTarget(
     );
   }
 
-  const connectorPort = Number(options.port);
+  const connectorPort =
+    options.port === ''
+      ? options.protocol === 'https:'
+        ? 443
+        : 80
+      : Number(options.port);
 
   if (!Number.isInteger(connectorPort) || connectorPort !== target.port) {
     throw new SecureHttpTransportError(
