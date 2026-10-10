@@ -21,6 +21,11 @@ vi.mock('./secure-http-transport', async (importOriginal) => {
 const testConfig: JobsConfig = {
   headRequestTimeoutMs: 1234,
   maxConcurrency: 2,
+  maxActiveJobs: 4,
+  creationRateLimit: {
+    maxJobs: 10,
+    windowMs: 60_000,
+  },
   artificialDelay: {
     minMs: 0,
     maxMs: 0,

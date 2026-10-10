@@ -3,12 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ARTIFICIAL_DELAY_MAX_MS,
   DEFAULT_ARTIFICIAL_DELAY_MIN_MS,
+  DEFAULT_CREATE_JOB_RATE_LIMIT,
+  DEFAULT_CREATE_JOB_RATE_WINDOW_MS,
+  DEFAULT_MAX_ACTIVE_JOBS,
   DEFAULT_MAX_CONCURRENCY,
 } from './environment.constants';
 import { validateEnvironment } from './environment.validation';
 
 describe('validateEnvironment', () => {
-  it('uses the required concurrency and artificial-delay defaults', () => {
+  it('uses the required jobs defaults', () => {
     const environment = validateEnvironment({});
 
     expect(environment.MAX_CONCURRENCY).toBe(DEFAULT_MAX_CONCURRENCY);
@@ -17,6 +20,13 @@ describe('validateEnvironment', () => {
     );
     expect(environment.ARTIFICIAL_DELAY_MAX_MS).toBe(
       DEFAULT_ARTIFICIAL_DELAY_MAX_MS,
+    );
+    expect(environment.MAX_ACTIVE_JOBS).toBe(DEFAULT_MAX_ACTIVE_JOBS);
+    expect(environment.CREATE_JOB_RATE_LIMIT).toBe(
+      DEFAULT_CREATE_JOB_RATE_LIMIT,
+    );
+    expect(environment.CREATE_JOB_RATE_WINDOW_MS).toBe(
+      DEFAULT_CREATE_JOB_RATE_WINDOW_MS,
     );
   });
 
@@ -32,6 +42,90 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         MAX_CONCURRENCY: maxConcurrency,
+      }),
+    ).toThrow();
+  });
+
+  it.each(['1', '4', '100'])('accepts MAX_ACTIVE_JOBS=%s', (maxActiveJobs) => {
+    const environment = validateEnvironment({
+      MAX_ACTIVE_JOBS: maxActiveJobs,
+    });
+
+    expect(environment.MAX_ACTIVE_JOBS).toBe(Number(maxActiveJobs));
+  });
+
+  it.each(['0', '-1', '101'])('rejects MAX_ACTIVE_JOBS=%s', (maxActiveJobs) => {
+    expect(() =>
+      validateEnvironment({
+        MAX_ACTIVE_JOBS: maxActiveJobs,
+      }),
+    ).toThrow();
+  });
+
+  it.each(['1', '10', '1000'])(
+    'accepts CREATE_JOB_RATE_LIMIT=%s',
+    (rateLimit) => {
+      const environment = validateEnvironment({
+        CREATE_JOB_RATE_LIMIT: rateLimit,
+      });
+
+      expect(environment.CREATE_JOB_RATE_LIMIT).toBe(Number(rateLimit));
+    },
+  );
+
+  it.each(['0', '-1', '1001'])(
+    'rejects CREATE_JOB_RATE_LIMIT=%s',
+    (rateLimit) => {
+      expect(() =>
+        validateEnvironment({
+          CREATE_JOB_RATE_LIMIT: rateLimit,
+        }),
+      ).toThrow();
+    },
+  );
+
+  it.each(['1000', '60000', '3600000'])(
+    'accepts CREATE_JOB_RATE_WINDOW_MS=%s',
+    (windowMs) => {
+      const environment = validateEnvironment({
+        CREATE_JOB_RATE_WINDOW_MS: windowMs,
+      });
+
+      expect(environment.CREATE_JOB_RATE_WINDOW_MS).toBe(Number(windowMs));
+    },
+  );
+
+  it.each(['0', '999', '3600001'])(
+    'rejects CREATE_JOB_RATE_WINDOW_MS=%s',
+    (windowMs) => {
+      expect(() =>
+        validateEnvironment({
+          CREATE_JOB_RATE_WINDOW_MS: windowMs,
+        }),
+      ).toThrow();
+    },
+  );
+
+  it.each([
+    {
+      name: 'fractional active jobs',
+      variable: 'MAX_ACTIVE_JOBS',
+      value: '1.5',
+    },
+    {
+      name: 'fractional rate limit',
+      variable: 'CREATE_JOB_RATE_LIMIT',
+      value: '10.5',
+    },
+    {
+      name: 'fractional rate window',
+      variable: 'CREATE_JOB_RATE_WINDOW_MS',
+      value: '60000.5',
+    },
+  ])('rejects $name', ({ variable, value }) => {
+    expect(() =>
+      validateEnvironment({
+        [variable]: value,
       }),
     ).toThrow();
   });

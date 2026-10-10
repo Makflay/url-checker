@@ -1,5 +1,9 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, type TestingModule } from '@nestjs/testing';
+import {
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import {
   beforeEach,
   describe,
@@ -8,13 +12,23 @@ import {
   vi,
   type MockedFunction,
 } from 'vitest';
-import { JobStatus } from './enums/job-status.enum';
-import { UrlCheckStatus } from './enums/url-check-status.enum';
+
+import type { TestingModule } from '@nestjs/testing';
+
 import type { JobItem } from './interfaces/job-item.interface';
 import type { Job } from './interfaces/job.interface';
+import type { JobsConfig } from '../config';
+
+import { JobStatus } from './enums/job-status.enum';
+import { UrlCheckStatus } from './enums/url-check-status.enum';
 import { JobsProcessor } from './processors/jobs.processor';
 import { JobsRepository } from './repositories/jobs.repository';
 import { JobsService } from './jobs.service';
+import { jobsConfig } from '../config';
+import {
+  JobCreationRateLimitException,
+  JobCreationRateLimiter,
+} from './job-creation-rate-limiter.service';
 
 function createItem(id: string, status: UrlCheckStatus): JobItem {
   return {
@@ -63,18 +77,35 @@ function createJob(status: JobStatus, items: JobItem[]): Job {
   };
 }
 
+const testJobsConfig: JobsConfig = {
+  headRequestTimeoutMs: 1_000,
+  maxConcurrency: 5,
+  maxActiveJobs: 4,
+  creationRateLimit: {
+    maxJobs: 10,
+    windowMs: 60_000,
+  },
+  artificialDelay: {
+    minMs: 0,
+    maxMs: 0,
+  },
+};
+
 describe('JobsService', () => {
   let service: JobsService;
 
   let createJobMock: MockedFunction<JobsRepository['create']>;
-
   let findAllJobsMock: MockedFunction<JobsRepository['findAll']>;
-
   let findJobByIdMock: MockedFunction<JobsRepository['findById']>;
-
   let updateJobMock: MockedFunction<JobsRepository['update']>;
-
   let processJobMock: MockedFunction<JobsProcessor['process']>;
+  let countActiveJobsMock: MockedFunction<JobsRepository['countActive']>;
+  let assertCreationAllowedMock: MockedFunction<
+    JobCreationRateLimiter['assertCreationAllowed']
+  >;
+  let recordAcceptedCreationMock: MockedFunction<
+    JobCreationRateLimiter['recordAcceptedCreation']
+  >;
 
   beforeEach(async () => {
     createJobMock = vi.fn((job: Job): Job => job);
@@ -82,6 +113,9 @@ describe('JobsService', () => {
     findJobByIdMock = vi.fn((_id: string): Job | undefined => undefined);
     updateJobMock = vi.fn((_id: string, job: Job): Job => job);
     processJobMock = vi.fn((_id: string): Promise<void> => Promise.resolve());
+    countActiveJobsMock = vi.fn((): number => 0);
+    assertCreationAllowedMock = vi.fn((_nowMs: number): void => undefined);
+    recordAcceptedCreationMock = vi.fn((_nowMs: number): void => undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -100,6 +134,17 @@ describe('JobsService', () => {
           useValue: {
             process: processJobMock,
           },
+        },
+        {
+          provide: JobCreationRateLimiter,
+          useValue: {
+            assertCreationAllowed: assertCreationAllowedMock,
+            recordAcceptedCreation: recordAcceptedCreationMock,
+          },
+        },
+        {
+          provide: jobsConfig.KEY,
+          useValue: testJobsConfig,
         },
       ],
     }).compile();
@@ -130,6 +175,12 @@ describe('JobsService', () => {
       expect(calls).toEqual(['repository', 'processor']);
       expect(createJobMock).toHaveBeenCalledTimes(1);
       expect(processJobMock).toHaveBeenCalledWith(result.jobId);
+      expect(assertCreationAllowedMock).toHaveBeenCalledTimes(1);
+      expect(countActiveJobsMock).toHaveBeenCalledTimes(1);
+      expect(recordAcceptedCreationMock).toHaveBeenCalledTimes(1);
+      expect(recordAcceptedCreationMock.mock.calls[0]?.[0]).toBe(
+        assertCreationAllowedMock.mock.calls[0]?.[0],
+      );
 
       const savedJob = createJobMock.mock.calls[0]?.[0];
 
@@ -213,6 +264,64 @@ describe('JobsService', () => {
         }),
       ).toThrow('Repository create failed');
 
+      expect(processJobMock).not.toHaveBeenCalled();
+      expect(recordAcceptedCreationMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects creation when the active-job limit is reached', () => {
+      countActiveJobsMock.mockReturnValue(testJobsConfig.maxActiveJobs);
+
+      expect(() =>
+        service.create({
+          urls: ['https://example.com'],
+        }),
+      ).toThrow(ServiceUnavailableException);
+
+      expect(assertCreationAllowedMock).toHaveBeenCalledTimes(1);
+      expect(createJobMock).not.toHaveBeenCalled();
+      expect(recordAcceptedCreationMock).not.toHaveBeenCalled();
+      expect(processJobMock).not.toHaveBeenCalled();
+    });
+
+    it('does not consume rate quota for an active-capacity rejection', () => {
+      countActiveJobsMock.mockReturnValue(testJobsConfig.maxActiveJobs);
+
+      expect(() =>
+        service.create({
+          urls: ['https://example.com'],
+        }),
+      ).toThrow('The service is temporarily at capacity. Try again later.');
+
+      expect(recordAcceptedCreationMock).not.toHaveBeenCalled();
+    });
+
+    it('accepts creation below the active-job limit', () => {
+      countActiveJobsMock.mockReturnValue(testJobsConfig.maxActiveJobs - 1);
+
+      const result = service.create({
+        urls: ['https://example.com'],
+      });
+
+      expect(result.jobId).not.toBe('');
+      expect(createJobMock).toHaveBeenCalledTimes(1);
+      expect(recordAcceptedCreationMock).toHaveBeenCalledTimes(1);
+      expect(processJobMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops before the active-job check when rate limiting rejects creation', () => {
+      assertCreationAllowedMock.mockImplementation(() => {
+        throw new JobCreationRateLimitException(30);
+      });
+
+      expect(() =>
+        service.create({
+          urls: ['https://example.com'],
+        }),
+      ).toThrow(JobCreationRateLimitException);
+
+      expect(countActiveJobsMock).not.toHaveBeenCalled();
+      expect(createJobMock).not.toHaveBeenCalled();
+      expect(recordAcceptedCreationMock).not.toHaveBeenCalled();
       expect(processJobMock).not.toHaveBeenCalled();
     });
   });

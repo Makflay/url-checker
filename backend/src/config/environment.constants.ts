@@ -2,9 +2,26 @@ export const DEFAULT_PORT = 3000;
 export const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:5173';
 export const DEFAULT_HEAD_REQUEST_TIMEOUT_MS = 5_000;
 export const DEFAULT_MAX_CONCURRENCY = 5;
+export const DEFAULT_MAX_GLOBAL_HEAD_CONCURRENCY = 10;
 export const DEFAULT_ARTIFICIAL_DELAY_MIN_MS = 0;
 export const DEFAULT_ARTIFICIAL_DELAY_MAX_MS = 10_000;
 
 export const MIN_PORT = 1;
 export const MAX_PORT = 65_535;
+
 export const MAX_CONCURRENCY_LIMIT = 5;
+export const MIN_MAX_GLOBAL_HEAD_CONCURRENCY = 1;
+export const MAX_GLOBAL_HEAD_CONCURRENCY_LIMIT = 50;
+
+export const DEFAULT_MAX_ACTIVE_JOBS = 4;
+export const DEFAULT_CREATE_JOB_RATE_LIMIT = 10;
+export const DEFAULT_CREATE_JOB_RATE_WINDOW_MS = 60_000;
+
+export const MIN_MAX_ACTIVE_JOBS = 1;
+export const MAX_ACTIVE_JOBS_LIMIT = 100;
+
+export const MIN_CREATE_JOB_RATE_LIMIT = 1;
+export const MAX_CREATE_JOB_RATE_LIMIT = 1_000;
+
+export const MIN_CREATE_JOB_RATE_WINDOW_MS = 1_000;
+export const MAX_CREATE_JOB_RATE_WINDOW_MS = 3_600_000;

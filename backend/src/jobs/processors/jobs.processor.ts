@@ -1,15 +1,16 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 
-import { jobsConfig } from '../../config';
 import type { JobsConfig } from '../../config';
-
-import { JobStatus } from '../enums/job-status.enum';
-import { UrlCheckStatus } from '../enums/url-check-status.enum';
-import type { HttpCheckResult } from '../http/http-check-result.interface';
-import { HttpClientService } from '../http/http-client.service';
 import type { JobItem } from '../interfaces/job-item.interface';
 import type { Job } from '../interfaces/job.interface';
+import type { HttpCheckResult } from '../http/http-check-result.interface';
+
+import { jobsConfig } from '../../config';
+import { JobStatus } from '../enums/job-status.enum';
+import { UrlCheckStatus } from '../enums/url-check-status.enum';
+import { HttpClientService } from '../http/http-client.service';
 import { JobsRepository } from '../repositories/jobs.repository';
+import { GlobalHeadSemaphore } from '../global-head-semaphore.service';
 
 @Injectable()
 export class JobsProcessor {
@@ -17,6 +18,7 @@ export class JobsProcessor {
   constructor(
     private readonly jobsRepository: JobsRepository,
     private readonly httpClientService: HttpClientService,
+    private readonly globalHeadSemaphore: GlobalHeadSemaphore,
     @Inject(jobsConfig.KEY)
     private readonly config: JobsConfig,
   ) {}
@@ -91,53 +93,79 @@ export class JobsProcessor {
   }
 
   private async processItem(jobId: string, itemId: string): Promise<void> {
-    const currentJob = this.jobsRepository.findById(jobId);
+    const releasePermit = await this.globalHeadSemaphore.acquire();
 
-    if (!currentJob) {
-      return;
+    let completedCheck: {
+      result: HttpCheckResult;
+      startedAtMs: number;
+    } | null = null;
+
+    try {
+      const currentJob = this.jobsRepository.findById(jobId);
+
+      if (!currentJob || currentJob.status !== JobStatus.IN_PROGRESS) {
+        return;
+      }
+
+      const currentItem = currentJob.items.find((item) => item.id === itemId);
+
+      if (!currentItem || currentItem.status !== UrlCheckStatus.PENDING) {
+        return;
+      }
+
+      const startedAtMs = Date.now();
+      const startedAt = new Date(startedAtMs).toISOString();
+
+      const startedItem: JobItem = {
+        ...currentItem,
+        status: UrlCheckStatus.IN_PROGRESS,
+        httpStatus: null,
+        errorMessage: null,
+        startedAt,
+        finishedAt: null,
+        durationMs: null,
+      };
+
+      const jobWithStartedItem: Job = {
+        ...currentJob,
+        items: currentJob.items.map((item) =>
+          item.id === itemId ? startedItem : item,
+        ),
+      };
+
+      const updatedJob = this.jobsRepository.update(jobId, jobWithStartedItem);
+
+      if (!updatedJob) {
+        return;
+      }
+
+      const result = await this.httpClientService.check(currentItem.url);
+
+      completedCheck = {
+        result,
+        startedAtMs,
+      };
+    } finally {
+      releasePermit();
     }
 
-    const currentItem = currentJob.items.find((item) => item.id === itemId);
-
-    if (!currentItem || currentItem.status !== UrlCheckStatus.PENDING) {
+    if (completedCheck === null) {
       return;
     }
-
-    const startedAtMs = Date.now();
-    const startedAt = new Date(startedAtMs).toISOString();
-
-    const startedItem: JobItem = {
-      ...currentItem,
-      status: UrlCheckStatus.IN_PROGRESS,
-      httpStatus: null,
-      errorMessage: null,
-      startedAt,
-      finishedAt: null,
-      durationMs: null,
-    };
-
-    const jobWithStartedItem: Job = {
-      ...currentJob,
-      items: currentJob.items.map((item) =>
-        item.id === itemId ? startedItem : item,
-      ),
-    };
-
-    const updatedJob = this.jobsRepository.update(jobId, jobWithStartedItem);
-
-    if (!updatedJob) {
-      return;
-    }
-
-    const result = await this.httpClientService.check(currentItem.url);
 
     await this.delay(this.getRandomDelayMs());
 
     const finishedAtMs = Date.now();
     const finishedAt = new Date(finishedAtMs).toISOString();
-    const durationMs = finishedAtMs - startedAtMs;
+    const durationMs = finishedAtMs - completedCheck.startedAtMs;
 
-    this.saveItemResult(jobId, itemId, result, finishedAt, durationMs);
+    this.saveItemResult(
+      jobId,
+      itemId,
+      completedCheck.result,
+      finishedAt,
+      durationMs,
+    );
   }
 
   private saveItemResult(

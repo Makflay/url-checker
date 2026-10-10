@@ -67,6 +67,11 @@ const TERMINAL_ITEM_STATUSES = new Set<UrlCheckStatus>([
 const E2E_JOBS_CONFIG: JobsConfig = {
   headRequestTimeoutMs: 1_000,
   maxConcurrency: 5,
+  maxActiveJobs: 100,
+  creationRateLimit: {
+    maxJobs: 1_000,
+    windowMs: 60_000,
+  },
   artificialDelay: {
     minMs: 0,
     maxMs: 0,

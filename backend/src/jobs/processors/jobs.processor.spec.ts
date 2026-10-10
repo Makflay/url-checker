@@ -1,19 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { JobsConfig } from '../../config';
-import { JobStatus } from '../enums/job-status.enum';
-import { UrlCheckStatus } from '../enums/url-check-status.enum';
-import { HttpClientService } from '../http/http-client.service';
 import type { JobItem } from '../interfaces/job-item.interface';
 import type { Job } from '../interfaces/job.interface';
 import type { HttpCheckResult } from '../http/http-check-result.interface';
+import type { JobsConfig } from '../../config';
+
+import { JobStatus } from '../enums/job-status.enum';
+import { UrlCheckStatus } from '../enums/url-check-status.enum';
+import { HttpClientService } from '../http/http-client.service';
 import { JobsRepository } from '../repositories/jobs.repository';
 import { JobsProcessor } from './jobs.processor';
 import { JobsService } from '../jobs.service';
+import { JobCreationRateLimiter } from '../job-creation-rate-limiter.service';
 
 const testJobsConfig: JobsConfig = {
   headRequestTimeoutMs: 5000,
   maxConcurrency: 2,
+  maxActiveJobs: 4,
+  creationRateLimit: {
+    maxJobs: 10,
+    windowMs: 60_000,
+  },
   artificialDelay: {
     minMs: 0,
     maxMs: 0,
@@ -86,7 +93,15 @@ describe('JobsProcessor', () => {
       httpClientService,
       testJobsConfig,
     );
-    service = new JobsService(repository, processor);
+
+    const jobCreationRateLimiter = new JobCreationRateLimiter(testJobsConfig);
+
+    service = new JobsService(
+      repository,
+      processor,
+      jobCreationRateLimiter,
+      testJobsConfig,
+    );
   });
 
   afterEach(() => {

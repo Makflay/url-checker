@@ -8,21 +8,25 @@ import {
   type MockedFunction,
 } from 'vitest';
 
+import type { Response } from 'express';
+
 import type { CreateJobDto } from './dto/create-job.dto';
-import { JobStatus } from './enums/job-status.enum';
 import type { CreateJobResponse } from './interfaces/create-job-response.interface';
 import type { JobDetails } from './interfaces/job-details.interface';
 import type { JobSummary } from './interfaces/job-summary.interface';
+
+import { JobStatus } from './enums/job-status.enum';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
+import { JobCreationRateLimitException } from './job-creation-rate-limiter.service';
 
 describe('JobsController', () => {
   let controller: JobsController;
-
   let createJobMock: MockedFunction<JobsService['create']>;
   let findAllJobsMock: MockedFunction<JobsService['findAll']>;
   let findJobByIdMock: MockedFunction<JobsService['findById']>;
   let cancelJobMock: MockedFunction<JobsService['cancel']>;
+  let responseMock: Pick<Response, 'setHeader'>;
 
   const createResponse: CreateJobResponse = {
     jobId: 'job-1',
@@ -68,12 +72,12 @@ describe('JobsController', () => {
     createJobMock = vi.fn(
       (_dto: CreateJobDto): CreateJobResponse => createResponse,
     );
-
     findAllJobsMock = vi.fn((): JobSummary[] => summaries);
-
     findJobByIdMock = vi.fn((_id: string): JobDetails => details);
-
     cancelJobMock = vi.fn((_id: string): void => undefined);
+    responseMock = {
+      setHeader: vi.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [JobsController],
@@ -98,7 +102,9 @@ describe('JobsController', () => {
       urls: ['https://example.com'],
     };
 
-    expect(controller.create(dto)).toBe(createResponse);
+    expect(controller.create(dto, responseMock as Response)).toBe(
+      createResponse,
+    );
     expect(createJobMock).toHaveBeenCalledWith(dto);
   });
 
@@ -118,5 +124,21 @@ describe('JobsController', () => {
     expect(cancelJobMock).toHaveBeenCalledTimes(1);
     expect(cancelJobMock).toHaveBeenCalledWith('job-1');
     expect(result).toBeUndefined();
+  });
+
+  it('sets Retry-After when job creation is rate limited', () => {
+    createJobMock.mockImplementation(() => {
+      throw new JobCreationRateLimitException(42);
+    });
+
+    const dto: CreateJobDto = {
+      urls: ['https://example.com'],
+    };
+
+    expect(() => controller.create(dto, responseMock as Response)).toThrow(
+      JobCreationRateLimitException,
+    );
+
+    expect(responseMock.setHeader).toHaveBeenCalledWith('Retry-After', '42');
   });
 });

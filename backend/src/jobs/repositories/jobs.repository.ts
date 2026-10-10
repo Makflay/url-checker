@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
+
 import type { Job } from '../interfaces/job.interface';
+
+import { JobStatus } from '../enums/job-status.enum';
 
 @Injectable()
 export class JobsRepository {
@@ -24,6 +27,23 @@ export class JobsRepository {
 
   findById(id: string): Job | undefined {
     return this.jobs.get(id);
+  }
+
+  countActive(): number {
+    let activeJobs = 0;
+
+    for (const job of this.jobs.values()) {
+      const isActive =
+        job.status === JobStatus.PENDING ||
+        job.status === JobStatus.IN_PROGRESS ||
+        (job.status === JobStatus.CANCELLED && job.finishedAt === null);
+
+      if (isActive) {
+        activeJobs += 1;
+      }
+    }
+
+    return activeJobs;
   }
 
   update(id: string, job: Job): Job | undefined {

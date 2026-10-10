@@ -2,31 +2,50 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Inject,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
-import type { CreateJobDto } from './dto/create-job.dto';
-import { JobStatus } from './enums/job-status.enum';
-import { UrlCheckStatus } from './enums/url-check-status.enum';
+import type { JobsConfig } from '../config';
 import type { CreateJobResponse } from './interfaces/create-job-response.interface';
 import type { JobItem } from './interfaces/job-item.interface';
 import type { Job } from './interfaces/job.interface';
 import type { JobDetails } from './interfaces/job-details.interface';
 import type { JobStatistics } from './interfaces/job-statistics.interface';
 import type { JobSummary } from './interfaces/job-summary.interface';
+import type { CreateJobDto } from './dto/create-job.dto';
+
+import { jobsConfig } from '../config';
+import { JobStatus } from './enums/job-status.enum';
+import { UrlCheckStatus } from './enums/url-check-status.enum';
 import { JobsRepository } from './repositories/jobs.repository';
 import { JobsProcessor } from './processors/jobs.processor';
+import { JobCreationRateLimiter } from './job-creation-rate-limiter.service';
 
 @Injectable()
 export class JobsService {
   constructor(
     private readonly jobsRepository: JobsRepository,
     private readonly jobsProcessor: JobsProcessor,
+    private readonly jobCreationRateLimiter: JobCreationRateLimiter,
+    @Inject(jobsConfig.KEY)
+    private readonly config: JobsConfig,
   ) {}
 
   create(dto: CreateJobDto): CreateJobResponse {
+    const admissionTimeMs = Date.now();
+
+    this.jobCreationRateLimiter.assertCreationAllowed(admissionTimeMs);
+
+    if (this.jobsRepository.countActive() >= this.config.maxActiveJobs) {
+      throw new ServiceUnavailableException(
+        'The service is temporarily at capacity. Try again later.',
+      );
+    }
+
     const jobId = randomUUID();
-    const createdAt = new Date().toISOString();
+    const createdAt = new Date(admissionTimeMs).toISOString();
 
     const items: JobItem[] = dto.urls.map((url): JobItem => ({
       id: randomUUID(),
@@ -50,6 +69,9 @@ export class JobsService {
     };
 
     this.jobsRepository.create(job);
+
+    this.jobCreationRateLimiter.recordAcceptedCreation(admissionTimeMs);
+
     void this.jobsProcessor.process(jobId);
 
     return { jobId };
