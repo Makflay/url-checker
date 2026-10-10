@@ -4,6 +4,7 @@ export interface EnvironmentVariables {
   HEAD_REQUEST_TIMEOUT_MS: number;
   MAX_CONCURRENCY: number;
   MAX_GLOBAL_HEAD_CONCURRENCY: number;
+  MAX_COMPLETED_JOBS_HISTORY: number;
   ARTIFICIAL_DELAY_MIN_MS: number;
   ARTIFICIAL_DELAY_MAX_MS: number;
   MAX_ACTIVE_JOBS: number;
@@ -21,6 +22,7 @@ export interface JobsConfig {
   maxConcurrency: number;
   maxGlobalHeadConcurrency: number;
   maxActiveJobs: number;
+  maxCompletedJobsHistory: number;
   creationRateLimit: {
     maxJobs: number;
     windowMs: number;

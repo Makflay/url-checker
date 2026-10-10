@@ -9,6 +9,7 @@ import {
   DEFAULT_CREATE_JOB_RATE_WINDOW_MS,
   DEFAULT_MAX_ACTIVE_JOBS,
   DEFAULT_MAX_GLOBAL_HEAD_CONCURRENCY,
+  DEFAULT_MAX_COMPLETED_JOBS_HISTORY,
 } from './environment.constants';
 import type { JobsConfig } from './environment.types';
 
@@ -24,6 +25,10 @@ export const jobsConfig = registerAs('jobs', (): JobsConfig => ({
       DEFAULT_MAX_GLOBAL_HEAD_CONCURRENCY,
   ),
   maxActiveJobs: Number(process.env.MAX_ACTIVE_JOBS ?? DEFAULT_MAX_ACTIVE_JOBS),
+  maxCompletedJobsHistory: Number(
+    process.env.MAX_COMPLETED_JOBS_HISTORY ??
+      DEFAULT_MAX_COMPLETED_JOBS_HISTORY,
+  ),
   creationRateLimit: {
     maxJobs: Number(
       process.env.CREATE_JOB_RATE_LIMIT ?? DEFAULT_CREATE_JOB_RATE_LIMIT,
