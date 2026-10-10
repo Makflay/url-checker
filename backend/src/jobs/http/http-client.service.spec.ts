@@ -1,7 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JobsConfig } from '../../config';
 import { HttpClientService } from './http-client.service';
+import { OutboundUrlValidationError } from './outbound-url-validation';
+import {
+  performSecureHeadRequest,
+  SecureHttpTransportError,
+} from './secure-http-transport';
+
+vi.mock('./secure-http-transport', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('./secure-http-transport')>();
+
+  return {
+    ...original,
+    performSecureHeadRequest: vi.fn(),
+  };
+});
 
 const testConfig: JobsConfig = {
   headRequestTimeoutMs: 1234,
@@ -14,53 +29,38 @@ const testConfig: JobsConfig = {
 
 describe('HttpClientService', () => {
   let service: HttpClientService;
-  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
+
+  const performSecureHeadRequestMock = vi.mocked(performSecureHeadRequest);
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     service = new HttpClientService(testConfig);
-    fetchMock = vi.fn<typeof fetch>();
-
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   it('returns the HTTP status for a successful response', async () => {
-    const url = 'https://example.com';
+    performSecureHeadRequestMock.mockResolvedValue({
+      statusCode: 200,
+    });
 
-    fetchMock.mockResolvedValue(
-      new Response(null, {
-        status: 200,
-      }),
-    );
-
-    const result = await service.check(url);
+    const result = await service.check('https://example.com');
 
     expect(result).toEqual({
       type: 'success',
       httpStatus: 200,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    const fetchCall = fetchMock.mock.calls[0];
-
-    expect(fetchCall?.[0]).toBe(url);
-    expect(fetchCall?.[1]).toMatchObject({
-      method: 'HEAD',
-      redirect: 'follow',
-    });
-    expect(fetchCall?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(performSecureHeadRequestMock).toHaveBeenCalledTimes(1);
+    expect(performSecureHeadRequestMock).toHaveBeenCalledWith(
+      'https://example.com',
+      1234,
+    );
   });
 
   it('returns a final 3xx response as an HTTP error', async () => {
-    fetchMock.mockResolvedValue(
-      new Response(null, {
-        status: 302,
-      }),
-    );
+    performSecureHeadRequestMock.mockResolvedValue({
+      statusCode: 302,
+    });
 
     const result = await service.check('https://example.com/redirect');
 
@@ -71,12 +71,25 @@ describe('HttpClientService', () => {
     });
   });
 
+  it('preserves a controlled redirect error message', async () => {
+    performSecureHeadRequestMock.mockResolvedValue({
+      statusCode: 302,
+      errorMessage: 'HTTP redirect cycle was detected',
+    });
+
+    const result = await service.check('https://example.com/redirect');
+
+    expect(result).toEqual({
+      type: 'http_error',
+      httpStatus: 302,
+      errorMessage: 'HTTP redirect cycle was detected',
+    });
+  });
+
   it('returns 404 as an HTTP error with the response status', async () => {
-    fetchMock.mockResolvedValue(
-      new Response(null, {
-        status: 404,
-      }),
-    );
+    performSecureHeadRequestMock.mockResolvedValue({
+      statusCode: 404,
+    });
 
     const result = await service.check('https://example.com/missing');
 
@@ -88,11 +101,9 @@ describe('HttpClientService', () => {
   });
 
   it('returns 500 as an HTTP error with the response status', async () => {
-    fetchMock.mockResolvedValue(
-      new Response(null, {
-        status: 500,
-      }),
-    );
+    performSecureHeadRequestMock.mockResolvedValue({
+      statusCode: 500,
+    });
 
     const result = await service.check('https://example.com/error');
 
@@ -103,8 +114,38 @@ describe('HttpClientService', () => {
     });
   });
 
+  it('returns a safe URL validation error', async () => {
+    performSecureHeadRequestMock.mockRejectedValue(
+      new OutboundUrlValidationError('URL resolves to a non-public IP address'),
+    );
+
+    const result = await service.check('http://127.0.0.1');
+
+    expect(result).toEqual({
+      type: 'transport_error',
+      errorMessage: 'URL resolves to a non-public IP address',
+    });
+  });
+
+  it('returns a safe secure transport error', async () => {
+    performSecureHeadRequestMock.mockRejectedValue(
+      new SecureHttpTransportError(
+        'HTTP connection used an unvalidated address',
+      ),
+    );
+
+    const result = await service.check('https://example.com');
+
+    expect(result).toEqual({
+      type: 'transport_error',
+      errorMessage: 'HTTP connection used an unvalidated address',
+    });
+  });
+
   it('normalizes a network error', async () => {
-    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    performSecureHeadRequestMock.mockRejectedValue(
+      new TypeError('socket failed for a remote address'),
+    );
 
     const result = await service.check('https://unavailable.example.com');
 
@@ -115,7 +156,7 @@ describe('HttpClientService', () => {
   });
 
   it('normalizes a timeout error', async () => {
-    fetchMock.mockRejectedValue(
+    performSecureHeadRequestMock.mockRejectedValue(
       new DOMException(
         'The operation was aborted due to timeout',
         'TimeoutError',
@@ -126,12 +167,12 @@ describe('HttpClientService', () => {
 
     expect(result).toEqual({
       type: 'transport_error',
-      errorMessage: `Request timed out after 1234 ms`,
+      errorMessage: 'Request timed out after 1234 ms',
     });
   });
 
   it('normalizes an aborted request', async () => {
-    fetchMock.mockRejectedValue(
+    performSecureHeadRequestMock.mockRejectedValue(
       new DOMException('This operation was aborted', 'AbortError'),
     );
 
@@ -144,7 +185,7 @@ describe('HttpClientService', () => {
   });
 
   it('normalizes an unknown rejected value', async () => {
-    fetchMock.mockRejectedValue('unexpected failure');
+    performSecureHeadRequestMock.mockRejectedValue('unexpected failure');
 
     const result = await service.check('https://example.com');
 

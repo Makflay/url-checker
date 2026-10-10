@@ -1,9 +1,13 @@
 import { Injectable, Inject } from '@nestjs/common';
 
-import { jobsConfig } from '../../config';
 import type { JobsConfig } from '../../config';
-
 import type { HttpCheckResult } from './http-check-result.interface';
+
+import { jobsConfig } from '../../config';
+import {
+  isOutboundSecurityError,
+  performSecureHeadRequest,
+} from './secure-http-transport';
 
 @Injectable()
 export class HttpClientService {
@@ -14,27 +18,27 @@ export class HttpClientService {
 
   async check(url: string): Promise<HttpCheckResult> {
     try {
-      const response = await fetch(url, {
-        method: 'HEAD',
-        redirect: 'follow',
-        signal: AbortSignal.timeout(this.config.headRequestTimeoutMs),
-      });
+      const response = await performSecureHeadRequest(
+        url,
+        this.config.headRequestTimeoutMs,
+      );
 
-      if (response.ok) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return {
           type: 'success',
-          httpStatus: response.status,
+          httpStatus: response.statusCode,
         };
       }
 
       const errorMessage =
-        response.status >= 300 && response.status < 400
-          ? `HTTP request ended with redirect status ${response.status}`
-          : `HTTP request returned status ${response.status}`;
+        response.errorMessage ??
+        (response.statusCode >= 300 && response.statusCode < 400
+          ? `HTTP request ended with redirect status ${response.statusCode}`
+          : `HTTP request returned status ${response.statusCode}`);
 
       return {
         type: 'http_error',
-        httpStatus: response.status,
+        httpStatus: response.statusCode,
         errorMessage,
       };
     } catch (error: unknown) {
@@ -53,6 +57,10 @@ export class HttpClientService {
 
       if (error.name === 'AbortError') {
         return 'Request was aborted';
+      }
+
+      if (isOutboundSecurityError(error)) {
+        return error.message;
       }
     }
 
